@@ -1,0 +1,469 @@
+import express from "express";
+import cookieParser from "cookie-parser";
+import crypto from "node:crypto";
+import { ENV } from "./env.js";
+import { get, all, run, dbReady, nextOrderNumber } from "./db.js";
+import {
+  hashPassword, verifyPassword, createSession, destroySession, publicUser,
+  sessionMiddleware, requireAuth, requireAdmin, rateLimit,
+} from "./auth.js";
+import {
+  gatewaysEnabled, stripeCreateCheckout, stripeGetSession, verifyStripeSignature,
+  paypalCreateOrder, paypalCaptureOrder,
+} from "./gateways.js";
+
+export const app = express();
+app.set("trust proxy", 1);
+
+// Marks a gateway payment as verified once the GATEWAY (not the buyer) has
+// authenticated it, and releases the order into production. Amount must match
+// to the cent — a mismatch keeps the payment on hold for admin review.
+async function finalizeGatewayPayment({ method, gatewayId, paidAmount, reference = "" }) {
+  const p = await get("SELECT * FROM payments WHERE method = ? AND gateway_id = ? ORDER BY id DESC LIMIT 1", [method, gatewayId]);
+  if (!p || p.status === "verified") return p ? { ok: p.status === "verified", payment: p } : { ok: false };
+  const o = await get("SELECT * FROM orders WHERE id = ?", [p.order_id]);
+  if (!o) return { ok: false };
+  const expected = Math.round(Number(o.total) * 100);
+  const received = Math.round(Number(paidAmount) * 100);
+  if (received !== expected) {
+    console.warn(`[pay] amount mismatch on ${p.order_id}: expected ${expected}c got ${received}c — held for review`);
+    return { ok: false, mismatch: true };
+  }
+  await run("UPDATE payments SET status = 'verified', verified_at = datetime('now'), reference = COALESCE(NULLIF(?, ''), reference) WHERE id = ?", [reference, p.id]);
+  await run("UPDATE orders SET status = 'In Progress' WHERE id = ?", [o.id]);
+  console.log(`[pay] ${method} payment verified for ${o.id} ($${paidAmount})`);
+  return { ok: true };
+}
+
+// Stripe webhook — registered BEFORE the JSON parser because signature
+// verification needs the exact raw request body.
+app.post("/api/webhooks/stripe", express.raw({ type: () => true, limit: "256kb" }), async (req, res) => {
+  if (!ENV.STRIPE_WEBHOOK_SECRET) return res.status(501).json({ error: "Stripe webhook not configured." });
+  const event = verifyStripeSignature(req.body.toString("utf8"), req.headers["stripe-signature"], ENV.STRIPE_WEBHOOK_SECRET);
+  if (!event) return res.status(400).json({ error: "Invalid webhook signature." });
+  if (event.type === "checkout.session.completed") {
+    const s = event.data?.object || {};
+    if (s.payment_status === "paid") {
+      await finalizeGatewayPayment({
+        method: "stripe",
+        gatewayId: s.id,
+        paidAmount: (s.amount_total || 0) / 100,
+        reference: s.payment_intent || "",
+      });
+    }
+  }
+  res.json({ received: true });
+});
+
+app.use(express.json({ limit: "64kb" }));
+app.use(cookieParser());
+app.use(sessionMiddleware);
+
+// Baseline security headers.
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
+const clean = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const isEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+const MAX_PASSWORD_LEN = 128; // scrypt cost guard — reject absurdly long inputs
+
+// Order access: admins always; owners via their session; guest orders only
+// with the order's unguessable access token (IDs are sequential and public).
+function canAccessOrder(req, o) {
+  if (req.user?.role === "admin") return true;
+  if (o.user_id) return req.user?.id === o.user_id;
+  const token = String(req.query?.t || req.body?.token || "");
+  return Boolean(o.access_token) && token.length > 0 && token === o.access_token;
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+app.post("/api/auth/signup", rateLimit("signup", 10, 15 * 60e3), async (req, res) => {
+  const name = clean(req.body.name, 100);
+  const email = clean(req.body.email, 200).toLowerCase();
+  const password = String(req.body.password ?? "");
+  const level = clean(req.body.level, 40);
+  if (!name || !isEmail(email)) return res.status(400).json({ error: "Please provide a valid name and email." });
+  if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters." });
+  if (password.length > MAX_PASSWORD_LEN) return res.status(400).json({ error: `Password must be at most ${MAX_PASSWORD_LEN} characters.` });
+  if (await get("SELECT id FROM users WHERE email = ?", [email])) {
+    return res.status(409).json({ error: "An account with this email already exists." });
+  }
+  const { salt, hash } = hashPassword(password);
+  const info = await run(
+    "INSERT INTO users (name, email, pass_salt, pass_hash, level) VALUES (?, ?, ?, ?, ?)",
+    [name, email, salt, hash, level]
+  );
+  const user = await get("SELECT * FROM users WHERE id = ?", [info.lastInsertRowid]);
+  await createSession(res, user.id);
+  res.json({ user: publicUser(user) });
+});
+
+app.post("/api/auth/login", rateLimit("login", 20, 15 * 60e3), async (req, res) => {
+  const email = clean(req.body.email, 200).toLowerCase();
+  const password = String(req.body.password ?? "").slice(0, MAX_PASSWORD_LEN);
+  const user = await get("SELECT * FROM users WHERE email = ?", [email]);
+  if (!user || !verifyPassword(password, user.pass_salt, user.pass_hash)) {
+    return res.status(401).json({ error: "Invalid email or password. Please try again." });
+  }
+  await createSession(res, user.id);
+  res.json({ user: publicUser(user) });
+});
+
+app.post("/api/auth/logout", async (req, res) => {
+  await destroySession(req, res);
+  res.json({ ok: true });
+});
+
+app.get("/api/auth/me", (req, res) => {
+  res.json({ user: req.user ? publicUser(req.user) : null });
+});
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+const DEADLINE_HOURS = { days14: 336, days7: 168, days5: 120, days3: 72, days2: 48, days1: 24, hours8: 8 };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const ORDER_STATUSES = ["Awaiting Payment", "Payment Under Review", "In Progress", "Completed", "Revisions", "Cancelled", "Technical"];
+
+// ---------------------------------------------------------------------------
+// Pricing — the server is the single source of truth. Client-sent totals are
+// ignored; the amount is recomputed here so it cannot be tampered with.
+// ---------------------------------------------------------------------------
+const PRICE_TABLE = {
+  "High School": { days14: 10, days7: 11, days5: 12, days3: 14, days2: 15, days1: 16, hours8: 18 },
+  "College":     { days14: 11, days7: 12, days5: 13, days3: 15, days2: 16, days1: 18, hours8: 20 },
+  "BSN":         { days14: 12, days7: 13, days5: 15, days3: 16, days2: 18, days1: 20, hours8: 22 },
+  "MSN":         { days14: 14, days7: 15, days5: 17, days3: 18, days2: 20, days1: 22, hours8: 25 },
+  "DNP":         { days14: 15, days7: 16, days5: 18, days3: 20, days2: 22, days1: 25, hours8: 28 },
+  "Social Work": { days14: 12, days7: 13, days5: 15, days3: 16, days2: 18, days1: 20, hours8: 22 },
+};
+const SERVICE_MULT = { writing: 1.0, editing: 0.7, proofreading: 0.5 };
+const SERVICE_LABEL = { writing: "Writing from scratch", editing: "Editing & rewriting", proofreading: "Proofreading" };
+const PRICE_PER_SLIDE = 5;
+const PAYMENT_METHODS = ["paypal", "card", "whatsapp"];
+
+// NEW20 is a first-order coupon: one use per account / guest email.
+async function couponDiscount(coupon, userId, guestEmail) {
+  if (String(coupon || "").trim().toLowerCase() !== "new20") return 0;
+  let prior = null;
+  if (userId) {
+    prior = await get("SELECT 1 FROM orders WHERE user_id = ? AND lower(coupon) = 'new20' AND status != 'Cancelled' LIMIT 1", [userId]);
+  } else if (guestEmail) {
+    prior = await get("SELECT 1 FROM orders WHERE guest_email = ? AND lower(coupon) = 'new20' AND status != 'Cancelled' LIMIT 1", [guestEmail]);
+  }
+  return prior ? 0 : 0.2;
+}
+
+async function computeTotal({ level, deadlineKey, pages, slides, serviceKey, coupon, userId, guestEmail }) {
+  const perPage = PRICE_TABLE[level]?.[deadlineKey] ?? 12;
+  const mult = SERVICE_MULT[serviceKey] ?? 1.0;
+  const subtotal = perPage * pages * mult + slides * PRICE_PER_SLIDE;
+  const total = subtotal * (1 - (await couponDiscount(coupon, userId, guestEmail)));
+  return Math.round(total * 100) / 100;
+}
+
+function deadlineFromKey(key) {
+  const hours = DEADLINE_HOURS[key] ?? 168;
+  const d = new Date(Date.now() + hours * 3600e3);
+  let out = `${MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2, "0")}, ${d.getFullYear()}`;
+  if (hours < 24) {
+    let h = d.getHours();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    out += `, ${h}:${String(d.getMinutes()).padStart(2, "0")} ${ampm}`;
+  }
+  return out;
+}
+
+const orderRow = (o) => ({
+  id: o.id,
+  title: o.title,
+  description: o.description,
+  paperType: o.paper_type,
+  academicLevel: o.academic_level,
+  school: o.school,
+  service: o.service,
+  subject: o.subject,
+  pages: o.pages,
+  slides: o.slides,
+  sources: o.sources,
+  deadline: o.deadline,
+  coupon: o.coupon,
+  total: o.total,
+  status: o.status,
+  createdAt: o.created_at,
+  guestEmail: o.guest_email,
+  accessToken: o.access_token || "",
+});
+
+app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => {
+  const b = req.body || {};
+  const pages = Math.min(200, Math.max(1, parseInt(b.pages, 10) || 1));
+  const slides = Math.min(50, Math.max(0, parseInt(b.slides, 10) || 0));
+  const sources = Math.min(50, Math.max(0, parseInt(b.sources, 10) || 0));
+  const serviceKey = SERVICE_MULT[b.service] !== undefined ? b.service : "writing";
+  const guestEmail = req.user ? "" : clean(b.guestEmail, 200).toLowerCase();
+  // Authoritative amount — client-sent totals are never trusted.
+  const total = await computeTotal({
+    level: clean(b.academicLevel, 40),
+    deadlineKey: b.deadline,
+    pages,
+    slides,
+    serviceKey,
+    coupon: b.coupon,
+    userId: req.user?.id ?? null,
+    guestEmail,
+  });
+  const id = `RBW-${await nextOrderNumber()}`;
+  const accessToken = crypto.randomBytes(16).toString("hex");
+  await run(
+    `INSERT INTO orders (id, user_id, guest_email, access_token, title, description, paper_type, academic_level,
+                         school, service, subject, pages, slides, sources, deadline, coupon, total)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      req.user?.id ?? null,
+      guestEmail,
+      accessToken,
+      clean(b.title, 300) || clean(b.paperType, 100) || "Order",
+      clean(b.description, 5000),
+      clean(b.paperType, 100),
+      clean(b.academicLevel, 40),
+      clean(b.school, 100),
+      SERVICE_LABEL[serviceKey],
+      clean(b.subject, 300),
+      pages,
+      slides,
+      sources,
+      deadlineFromKey(b.deadline),
+      clean(b.coupon, 40),
+      total,
+    ]
+  );
+  res.json({ order: orderRow(await get("SELECT * FROM orders WHERE id = ?", [id])) });
+});
+
+app.get("/api/orders", requireAuth, async (req, res) => {
+  const rows =
+    req.user.role === "admin"
+      ? await all("SELECT * FROM orders ORDER BY created_at DESC")
+      : await all("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC", [req.user.id]);
+  res.json({ orders: rows.map(orderRow) });
+});
+
+app.get("/api/orders/:id", async (req, res) => {
+  const o = await get("SELECT * FROM orders WHERE id = ?", [req.params.id]);
+  if (!o) return res.status(404).json({ error: "Order not found." });
+  if (!canAccessOrder(req, o)) return res.status(403).json({ error: "You don't have access to this order." });
+  res.json({ order: orderRow(o) });
+});
+
+// ---------------------------------------------------------------------------
+// Payments — buyers submit proof of payment; only an admin can verify it and
+// move the order into production. Orders can never self-confirm.
+// ---------------------------------------------------------------------------
+const paymentRow = (p) => ({
+  id: p.id,
+  orderId: p.order_id,
+  method: p.method,
+  reference: p.reference || p.gateway_id || "",
+  amount: p.amount,
+  status: p.status,
+  createdAt: p.created_at,
+  verifiedAt: p.verified_at,
+});
+
+// Which gateways are live (drives the checkout UI).
+app.get("/api/pay/config", (_req, res) => res.json(gatewaysEnabled()));
+
+async function loadPayableOrder(req, res) {
+  const o = await get("SELECT * FROM orders WHERE id = ?", [req.params.id]);
+  if (!o) return res.status(404).json({ error: "Order not found." }), null;
+  if (!canAccessOrder(req, o)) return res.status(403).json({ error: "You don't have access to this order." }), null;
+  if (o.status !== "Awaiting Payment") {
+    return res.status(409).json({ error: `This order is "${o.status}" — payment can only be made while it is awaiting payment.` }), null;
+  }
+  return o;
+}
+
+// Start an automated gateway payment: creates the gateway session and returns
+// the redirect URL. Confirmation only ever comes back from the gateway itself.
+app.post("/api/orders/:id/pay", rateLimit("gateway", 20, 15 * 60e3), async (req, res) => {
+  const o = await loadPayableOrder(req, res);
+  if (!o) return;
+  const gateway = String(req.body?.gateway || "").toLowerCase();
+  const enabled = gatewaysEnabled();
+  try {
+    let result;
+    if (gateway === "stripe" && enabled.stripe) {
+      result = await stripeCreateCheckout(o);
+    } else if (gateway === "paypal" && enabled.paypal) {
+      // The public origin serves /api in every deployment (Vite proxy in dev,
+      // Netlify redirect in production), so it is also the API origin.
+      result = await paypalCreateOrder(o, ENV.SITE_ORIGIN);
+    } else {
+      return res.status(400).json({ error: "This payment gateway is not available." });
+    }
+    await run("INSERT INTO payments (order_id, method, gateway_id, amount, status) VALUES (?, ?, ?, ?, 'pending')", [o.id, gateway, result.gatewayId, o.total]);
+    res.json({ url: result.url });
+  } catch (e) {
+    console.error(`[pay] ${gateway} start failed:`, e.message);
+    res.status(502).json({ error: `Could not start the ${gateway} payment. Please try again or use another method.` });
+  }
+});
+
+// Stripe return-path fallback: when the buyer lands back with a session_id we
+// retrieve the session from Stripe's API (server-side, unforgeable) — covers
+// deployments where the webhook isn't configured yet.
+app.post("/api/pay/stripe/sync", rateLimit("gateway", 30, 15 * 60e3), async (req, res) => {
+  if (!gatewaysEnabled().stripe) return res.status(501).json({ error: "Stripe not configured." });
+  const sessionId = clean(req.body?.sessionId, 200);
+  if (!sessionId) return res.status(400).json({ error: "Missing session id." });
+  try {
+    const s = await stripeGetSession(sessionId);
+    if (s.payment_status === "paid") {
+      await finalizeGatewayPayment({ method: "stripe", gatewayId: s.id, paidAmount: (s.amount_total || 0) / 100, reference: s.payment_intent || "" });
+    }
+    const o = await get("SELECT * FROM orders WHERE id = ?", [s.client_reference_id ?? ""]);
+    res.json({ paid: s.payment_status === "paid", order: o ? orderRow(o) : null });
+  } catch (e) {
+    res.status(502).json({ error: "Could not verify the Stripe session." });
+  }
+});
+
+// PayPal approval return: capture server-side (the authentication step), then
+// send the buyer back to checkout.
+app.get("/api/pay/paypal/return", async (req, res) => {
+  const orderId = String(req.query.order || "");
+  const paypalOrderId = String(req.query.token || "");
+  const accessToken = String(req.query.t || "").replace(/[^a-f0-9]/gi, "");
+  const back = `${ENV.SITE_ORIGIN}/checkout?order=${encodeURIComponent(orderId)}${accessToken ? `&t=${accessToken}` : ""}`;
+  if (!gatewaysEnabled().paypal || !paypalOrderId) return res.redirect(back);
+  try {
+    const capture = await paypalCaptureOrder(paypalOrderId);
+    if (capture.completed) {
+      await finalizeGatewayPayment({ method: "paypal", gatewayId: paypalOrderId, paidAmount: capture.amount, reference: capture.captureId });
+    }
+  } catch (e) {
+    console.error("[pay] paypal capture failed:", e.message);
+  }
+  res.redirect(back);
+});
+
+app.post("/api/orders/:id/payment", rateLimit("payments", 20, 15 * 60e3), async (req, res) => {
+  const o = await loadPayableOrder(req, res);
+  if (!o) return;
+  const method = String(req.body?.method || "").toLowerCase();
+  if (!PAYMENT_METHODS.includes(method)) return res.status(400).json({ error: "Invalid payment method." });
+  const reference = clean(req.body?.reference, 200);
+  if (method !== "whatsapp" && reference.length < 4) {
+    return res.status(400).json({ error: "Please enter the transaction ID / payment reference so we can verify your payment." });
+  }
+  await run("INSERT INTO payments (order_id, method, reference, amount) VALUES (?, ?, ?, ?)", [o.id, method, reference, o.total]);
+  await run("UPDATE orders SET status = 'Payment Under Review' WHERE id = ?", [o.id]);
+  res.json({ order: orderRow(await get("SELECT * FROM orders WHERE id = ?", [o.id])) });
+});
+
+app.get("/api/payments", requireAdmin, async (_req, res) => {
+  const rows = await all("SELECT p.*, o.title AS order_title FROM payments p LEFT JOIN orders o ON o.id = p.order_id ORDER BY p.created_at DESC");
+  res.json({ payments: rows.map((p) => ({ ...paymentRow(p), orderTitle: p.order_title })) });
+});
+
+app.post("/api/payments/:id/verify", requireAdmin, async (req, res) => {
+  const p = await get("SELECT * FROM payments WHERE id = ?", [req.params.id]);
+  if (!p) return res.status(404).json({ error: "Payment not found." });
+  if (p.status !== "submitted") return res.status(409).json({ error: `Payment already ${p.status}.` });
+  await run("UPDATE payments SET status = 'verified', verified_at = datetime('now') WHERE id = ?", [p.id]);
+  await run("UPDATE orders SET status = 'In Progress' WHERE id = ?", [p.order_id]);
+  res.json({ ok: true });
+});
+
+app.post("/api/payments/:id/reject", requireAdmin, async (req, res) => {
+  const p = await get("SELECT * FROM payments WHERE id = ?", [req.params.id]);
+  if (!p) return res.status(404).json({ error: "Payment not found." });
+  if (p.status !== "submitted") return res.status(409).json({ error: `Payment already ${p.status}.` });
+  await run("UPDATE payments SET status = 'rejected' WHERE id = ?", [p.id]);
+  await run("UPDATE orders SET status = 'Awaiting Payment' WHERE id = ?", [p.order_id]);
+  res.json({ ok: true });
+});
+
+app.patch("/api/orders/:id/status", requireAdmin, async (req, res) => {
+  const status = clean(req.body.status, 40);
+  if (!ORDER_STATUSES.includes(status)) return res.status(400).json({ error: "Invalid status." });
+  const info = await run("UPDATE orders SET status = ? WHERE id = ?", [status, req.params.id]);
+  if (!info.changes) return res.status(404).json({ error: "Order not found." });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Contact inbox
+// ---------------------------------------------------------------------------
+app.post("/api/messages", rateLimit("messages", 10, 15 * 60e3), async (req, res) => {
+  const fullName = clean(req.body.fullName, 100);
+  const email = clean(req.body.email, 200).toLowerCase();
+  const message = clean(req.body.message, 5000);
+  if (!fullName || !isEmail(email) || !message) {
+    return res.status(400).json({ error: "Name, valid email and message are required." });
+  }
+  await run(
+    "INSERT INTO messages (full_name, email, phone, service_type, message) VALUES (?, ?, ?, ?, ?)",
+    [fullName, email, clean(req.body.phone, 40), clean(req.body.serviceType, 100), message]
+  );
+  res.json({ ok: true });
+});
+
+app.get("/api/messages", requireAdmin, async (_req, res) => {
+  const rows = await all("SELECT * FROM messages ORDER BY created_at DESC");
+  res.json({
+    messages: rows.map((m) => ({
+      id: m.id,
+      fullName: m.full_name,
+      email: m.email,
+      phone: m.phone,
+      serviceType: m.service_type,
+      message: m.message,
+      createdAt: m.created_at,
+    })),
+  });
+});
+
+app.delete("/api/messages/:id", requireAdmin, async (req, res) => {
+  await run("DELETE FROM messages WHERE id = ?", [req.params.id]);
+  res.json({ ok: true });
+});
+
+app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
+
+// JSON error handler — async route failures must never leak an HTML stack.
+app.use((err, _req, res, _next) => {
+  console.error("[server] unhandled error:", err);
+  if (res.headersSent) return;
+  res.status(500).json({ error: "Server error. Please try again." });
+});
+
+// Seed the admin account from env (updates the password if env changed).
+// In production a real ADMIN_PASSWORD is mandatory — fail closed otherwise.
+async function seedAdmin() {
+  if (ENV.ADMIN_PASSWORD === "admin123") {
+    if (ENV.IS_PROD) {
+      throw new Error("Refusing to serve with the default admin password — set ADMIN_PASSWORD in the environment.");
+    }
+    console.warn("[server] WARNING: using the default admin password — set ADMIN_PASSWORD in server/.env");
+  }
+  const existing = await get("SELECT * FROM users WHERE email = ?", [ENV.ADMIN_EMAIL]);
+  const { salt, hash } = hashPassword(ENV.ADMIN_PASSWORD);
+  if (!existing) {
+    await run("INSERT INTO users (name, email, pass_salt, pass_hash, role) VALUES ('Admin', ?, ?, ?, 'admin')", [ENV.ADMIN_EMAIL, salt, hash]);
+  } else if (!verifyPassword(ENV.ADMIN_PASSWORD, existing.pass_salt, existing.pass_hash)) {
+    await run("UPDATE users SET pass_salt = ?, pass_hash = ?, role = 'admin' WHERE id = ?", [salt, hash, existing.id]);
+  }
+}
+
+// Awaited before the first request is served (schema + admin seed).
+export const ready = dbReady.then(seedAdmin);

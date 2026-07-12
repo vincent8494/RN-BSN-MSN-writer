@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.netlify/
+
+# Secrets — set these in Netlify site settings, never commit them.
+server/.env
+.env
+.env.*
+!.env.example
+
+# Local database (production data lives in Turso)
+server/data.sqlite
+server/data.sqlite-shm
+server/data.sqlite-wal
+
+*.log

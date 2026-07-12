@@ -1,0 +1,51 @@
+import {
+  FileText,
+  HeartPulse,
+  GraduationCap,
+  Search,
+  Stethoscope,
+  BookOpen,
+  MessageSquare,
+  BookMarked,
+  ClipboardList,
+  HelpCircle,
+  FileEdit,
+  Backpack,
+  Award,
+  ShieldCheck,
+  Gem,
+  RefreshCw,
+  Clock,
+  Lock,
+  CreditCard,
+  Download,
+  Headphones,
+} from "lucide-react";
+
+export const ICONS = {
+  FileText,
+  HeartPulse,
+  GraduationCap,
+  Search,
+  Stethoscope,
+  BookOpen,
+  MessageSquare,
+  BookMarked,
+  ClipboardList,
+  HelpCircle,
+  FileEdit,
+  Backpack,
+  Award,
+  ShieldCheck,
+  Gem,
+  RefreshCw,
+  Clock,
+  Lock,
+  CreditCard,
+  Download,
+  Headphones,
+};
+
+export function iconFor(name) {
+  return ICONS[name] || FileText;
+}

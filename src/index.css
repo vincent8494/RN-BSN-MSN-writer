@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+
+  /* Brand accent — indigo "academic" palette */
+  --color-academic-50: #f0f4ff;
+  --color-academic-100: #dbe4ff;
+  --color-academic-200: #bac8ff;
+  --color-academic-300: #91a7ff;
+  --color-academic-400: #748ffc;
+  --color-academic-500: #5c7cfa;
+  --color-academic-600: #4c6ef5;
+  --color-academic-700: #4263eb;
+  --color-academic-800: #3b5bdb;
+  --color-academic-900: #364fc7;
+
+  --color-brand-charcoal: #0f172a;
+  --color-brand-cream: #f8fafc;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: local("Inter");
+}
+
+:root {
+  font-family: var(--font-sans);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible keyboard focus everywhere without affecting mouse users */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-academic-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Reusable component utilities (mirrors the reference build) ---- */
+@layer components {
+  .section-title {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    font-size: clamp(1.875rem, 1.2rem + 2.6vw, 2.75rem);
+    color: #0f172a;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-academic-600);
+  }
+
+  .card-academic {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 8px 24px -12px rgba(15, 23, 42, 0.12);
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--color-academic-600);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .btn-primary:hover {
+    background: var(--color-academic-700);
+    box-shadow: 0 10px 20px -8px rgba(76, 110, 245, 0.6);
+  }
+
+  .btn-whatsapp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #fff;
+    background: #25d366;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .btn-whatsapp:hover {
+    background: #1eb954;
+    box-shadow: 0 10px 20px -8px rgba(37, 211, 102, 0.6);
+  }
+}
+
+/* Infinite logo marquee */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  gap: 1rem;
+  width: max-content;
+  animation: marquee-scroll 32s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    width: auto;
+  }
+}
+
+/* scrollbar polish */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
