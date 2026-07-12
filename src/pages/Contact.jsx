@@ -52,7 +52,7 @@ export default function Contact() {
             </a>
             <a href={CONTACT.tiktok} target="_blank" rel="noreferrer" className="card-academic p-5 flex items-center gap-4 hover:border-slate-400 transition-all">
               <div className="w-12 h-12 rounded-xl bg-black text-white flex items-center justify-center text-xl font-bold">♪</div>
-              <div><p className="font-bold text-slate-900">TikTok</p><p className="text-sm text-slate-500">{CONTACT.tiktokHandle}</p></div>
+              <div><p className="font-bold text-slate-900">TikTok</p><p className="text-sm text-slate-500">Follow us on TikTok</p></div>
             </a>
             <div className="card-academic p-5 flex items-center gap-4 bg-academic-50/50">
               <div className="w-12 h-12 rounded-xl bg-academic-100 text-academic-700 flex items-center justify-center"><Clock className="w-6 h-6" /></div>

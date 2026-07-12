@@ -10,8 +10,8 @@ export const BRAND = {
 };
 
 // Public site origin used for canonical URLs, Open Graph and structured data.
-// Set VITE_SITE_URL in .env when the real domain is known.
-export const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://rnbsnwriters.com").replace(/\/$/, "");
+// Set VITE_SITE_URL in .env / Netlify env when a custom domain is added.
+export const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://rnbsn-msn-writers.netlify.app").replace(/\/$/, "");
 
 export const CONTACT = {
   whatsappLink: "https://wa.me/message/LK3H5OSOAGDTG1",
@@ -20,7 +20,6 @@ export const CONTACT = {
   phoneDisplay: "+1 (309) 286-4134",
   email: "rnbsnmsnwriter@gmail.com",
   tiktok: "https://www.tiktok.com/@albert.george557",
-  tiktokHandle: "@albert.george557",
   location: "Available 24/7 — Online Support Worldwide",
 };
 
@@ -610,44 +609,6 @@ export const TESTIMONIALS = [
     feedback:
       "The support on my GCU social-work field-instruction papers and capstone was exceptional. Original, well-researched, and delivered exactly to the rubric. Worth every dollar.",
     rating: 5,
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Team / writers
-// ---------------------------------------------------------------------------
-export const TEAM = [
-  {
-    id: "tm1",
-    name: "Lead Nursing Writer",
-    role: "DNP, RN — Capstone & DNP Projects",
-    image: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=300&h=300&q=80",
-    description: "Doctor of Nursing Practice with 15+ years of clinical and academic experience across BSN, MSN and DNP programs.",
-    order: 1,
-  },
-  {
-    id: "tm2",
-    name: "Senior Academic Writer",
-    role: "PhD, MSN — Leadership & EBP",
-    image: "https://images.unsplash.com/photo-1611944212129-29977ae1398c?auto=format&fit=crop&w=300&h=300&q=80",
-    description: "PhD in Nursing Education specializing in evidence-based practice, leadership and WGU/Capella assessments.",
-    order: 2,
-  },
-  {
-    id: "tm3",
-    name: "Healthcare Research Specialist",
-    role: "MD, MPH — Pathophysiology & Pharmacology",
-    image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=300&h=300&q=80",
-    description: "Medical doctor with a Master of Public Health focused on healthcare research and complex case studies.",
-    order: 3,
-  },
-  {
-    id: "tm4",
-    name: "Informatics & Social Work Writer",
-    role: "PhD, RN-BC / MSW — Informatics & SWK",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&h=300&q=80",
-    description: "Nursing informatics and social-work specialist covering GCU BSW/MSW and quality-improvement projects.",
-    order: 4,
   },
 ];
 

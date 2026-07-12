@@ -5,7 +5,7 @@ import { BRAND, CONTACT, FOOTER_LINKS, UNIVERSITIES } from "../data.js";
 export default function Footer() {
   return (
     <footer className="relative bg-slate-900 text-slate-300 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(76,110,245,0.15),transparent_60%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(70,120,173,0.18),transparent_60%)] pointer-events-none" />
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
@@ -70,7 +70,7 @@ export default function Footer() {
               </li>
               <li>
                 <a href={CONTACT.tiktok} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-academic-300 transition-colors">
-                  <span className="w-4 h-4 grid place-items-center text-[13px] font-bold">♪</span> TikTok {CONTACT.tiktokHandle}
+                  <span className="w-4 h-4 grid place-items-center text-[13px] font-bold">♪</span> TikTok
                 </a>
               </li>
             </ul>

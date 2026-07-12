@@ -408,7 +408,7 @@ function SamplesPreview({ samples }) {
 function Testimonials({ testimonials }) {
   return (
     <section className="py-20 bg-slate-900 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(76,110,245,0.15),transparent_65%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(70,120,173,0.18),transparent_65%)]" />
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-14">
           <span className="text-xs font-bold tracking-widest uppercase text-academic-300">Testimonials</span>
@@ -420,33 +420,6 @@ function Testimonials({ testimonials }) {
           <button onClick={() => navigate("/reviews")} className="inline-flex items-center gap-2 text-sm font-semibold text-academic-300 hover:text-academic-200 transition-colors cursor-pointer">
             Read all client reviews <ArrowRight className="w-4 h-4" />
           </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------- Team */
-function Team({ team }) {
-  return (
-    <section className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-14">
-          <span className="eyebrow">Our Team</span>
-          <h2 className="section-title mb-4 mt-2">Our Expert Writers</h2>
-          <p className="text-slate-600">Advanced-degree nurses, clinicians and researchers who know your rubrics inside out.</p>
-        </motion.div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...team].sort((a, b) => a.order - b.order).map((m, i) => (
-            <motion.div key={m.id} {...fadeUp} transition={{ delay: i * 0.05 }} className="card-academic overflow-hidden">
-              <img src={m.image} srcSet={m.image ? `${m.image} 1x, ${m.image.replace("w=300&h=300", "w=600&h=600")} 2x` : undefined} alt={m.name} width={300} height={208} className="w-full h-52 object-cover" loading="lazy" decoding="async" />
-              <div className="p-5">
-                <h3 className="font-bold text-slate-900">{m.name}</h3>
-                <p className="text-xs font-semibold text-academic-600 mb-2">{m.role}</p>
-                <p className="text-sm text-slate-600 leading-relaxed">{m.description}</p>
-              </div>
-            </motion.div>
-          ))}
         </div>
       </div>
     </section>
@@ -554,7 +527,7 @@ function ContactCTA() {
                 <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center text-lg font-bold">♪</div>
                 <div>
                   <p className="font-semibold text-slate-900">TikTok</p>
-                  <p className="text-sm text-slate-500">{CONTACT.tiktokHandle}</p>
+                  <p className="text-sm text-slate-500">Follow us on TikTok</p>
                 </div>
               </a>
             </div>
@@ -649,7 +622,7 @@ function StructuredData({ faq }) {
 
 /* -------------------------------------------------------------------- Page */
 export default function Home() {
-  const { settings, testimonials, team, faq, samplePapers } = useApp();
+  const { settings, testimonials, faq, samplePapers } = useApp();
   return (
     <main>
       <StructuredData faq={faq} />
@@ -664,7 +637,6 @@ export default function Home() {
       <PricingPreview />
       <SamplesPreview samples={samplePapers} />
       <Testimonials testimonials={testimonials} />
-      <Team team={team} />
       <FAQSection faq={faq} />
       <ContactCTA />
     </main>

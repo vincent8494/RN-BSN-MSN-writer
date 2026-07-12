@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Shield, Mail, Lock, LogOut, LayoutDashboard, FileText, Star, Users,
+  Shield, Mail, Lock, LogOut, LayoutDashboard, FileText, Star,
   HelpCircle, FileStack, Inbox, Settings as SettingsIcon, Trash2, Pencil,
   Plus, X, CheckCircle2, GraduationCap, CreditCard, XCircle,
 } from "lucide-react";
@@ -33,7 +33,6 @@ const TABS = [
   { id: "orders", label: "Orders", icon: FileText },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "testimonials", label: "Testimonials", icon: Star },
-  { id: "team", label: "Team", icon: Users },
   { id: "faq", label: "FAQ", icon: HelpCircle },
   { id: "samples", label: "Samples", icon: FileStack },
   { id: "messages", label: "Messages", icon: Inbox },
@@ -315,15 +314,6 @@ export default function Admin() {
             render={(t) => (<><p className="font-semibold text-slate-900">{t.name}</p><p className="text-xs text-academic-600">{t.role}</p><p className="text-sm text-slate-600 mt-1 line-clamp-2">{t.feedback}</p></>)}
           />
         )}
-        {tab === "team" && (
-          <CrudSection
-            title="Team" items={app.team}
-            onAdd={() => setEdit({ type: "team", data: { name: "", role: "", description: "", image: "", order: 1 } })}
-            onEdit={(d) => setEdit({ type: "team", data: d })}
-            onDelete={(id) => { app.deleteTeamMember(id); notify("Team member deleted."); }}
-            render={(t) => (<><p className="font-semibold text-slate-900">{t.name}</p><p className="text-xs text-academic-600">{t.role}</p><p className="text-sm text-slate-600 mt-1 line-clamp-2">{t.description}</p></>)}
-          />
-        )}
         {tab === "faq" && (
           <CrudSection
             title="FAQ" items={[...app.faq].sort((a, b) => a.order - b.order)}
@@ -406,7 +396,6 @@ function EditModal({ edit, app, onClose, notify }) {
     e.preventDefault();
     const { type } = edit;
     if (type === "testimonials") isNew ? app.addTestimonial(data) : app.updateTestimonial(data);
-    else if (type === "team") isNew ? app.addTeamMember({ ...data, order: parseInt(data.order) || 1 }) : app.updateTeamMember({ ...data, order: parseInt(data.order) || 1 });
     else if (type === "faq") isNew ? app.addFAQ({ ...data, order: parseInt(data.order) || 1 }) : app.updateFAQ({ ...data, order: parseInt(data.order) || 1 });
     else if (type === "samples") isNew ? app.addSamplePaper({ ...data, pages: parseInt(data.pages) || 1 }) : app.updateSamplePaper({ ...data, pages: parseInt(data.pages) || 1 });
     notify(isNew ? "Added!" : "Updated!");
@@ -427,13 +416,6 @@ function EditModal({ edit, app, onClose, notify }) {
             <Field label="Avatar URL" value={data.avatar} onChange={(e) => upd("avatar", e.target.value)} />
             <Area label="Feedback" rows={4} value={data.feedback} onChange={(e) => upd("feedback", e.target.value)} required />
             <Field label="Rating (1-5)" type="number" min={1} max={5} value={data.rating} onChange={(e) => upd("rating", parseInt(e.target.value) || 5)} />
-          </>)}
-          {edit.type === "team" && (<>
-            <Field label="Name" value={data.name} onChange={(e) => upd("name", e.target.value)} required />
-            <Field label="Role" value={data.role} onChange={(e) => upd("role", e.target.value)} />
-            <Field label="Image URL" value={data.image} onChange={(e) => upd("image", e.target.value)} />
-            <Area label="Description" rows={3} value={data.description} onChange={(e) => upd("description", e.target.value)} />
-            <Field label="Order" type="number" value={data.order} onChange={(e) => upd("order", e.target.value)} />
           </>)}
           {edit.type === "faq" && (<>
             <Field label="Question" value={data.question} onChange={(e) => upd("question", e.target.value)} required />

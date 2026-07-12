@@ -4,17 +4,18 @@
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-serif: "Playfair Display", Georgia, serif;
 
-  /* Brand accent — indigo "academic" palette */
-  --color-academic-50: #f0f4ff;
-  --color-academic-100: #dbe4ff;
-  --color-academic-200: #bac8ff;
-  --color-academic-300: #91a7ff;
-  --color-academic-400: #748ffc;
-  --color-academic-500: #5c7cfa;
-  --color-academic-600: #4c6ef5;
-  --color-academic-700: #4263eb;
-  --color-academic-800: #3b5bdb;
-  --color-academic-900: #364fc7;
+  /* Brand accent — scholarly navy palette (university-crest blue: calmer and
+     higher-contrast than the previous bright indigo, warmer for students) */
+  --color-academic-50: #f3f7fb;
+  --color-academic-100: #e3edf7;
+  --color-academic-200: #c5d9ee;
+  --color-academic-300: #9bbcde;
+  --color-academic-400: #6b98c8;
+  --color-academic-500: #4678ad;
+  --color-academic-600: #345e94;
+  --color-academic-700: #2b4d7c;
+  --color-academic-800: #243f66;
+  --color-academic-900: #1e3453;
 
   --color-brand-charcoal: #0f172a;
   --color-brand-cream: #f8fafc;
@@ -40,6 +41,7 @@ body {
   margin: 0;
   background: #f8fafc;
   color: #0f172a;
+  line-height: 1.55; /* comfortable reading rhythm for long-form academic copy */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -108,7 +110,7 @@ body {
   }
   .btn-primary:hover {
     background: var(--color-academic-700);
-    box-shadow: 0 10px 20px -8px rgba(76, 110, 245, 0.6);
+    box-shadow: 0 10px 20px -8px rgba(52, 94, 148, 0.55);
   }
 
   .btn-whatsapp {

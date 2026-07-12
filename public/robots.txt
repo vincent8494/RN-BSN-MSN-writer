@@ -6,4 +6,4 @@ Disallow: /checkout
 Disallow: /login
 Disallow: /signup
 
-Sitemap: https://rnbsnwriters.com/sitemap.xml
+Sitemap: https://rnbsn-msn-writers.netlify.app/sitemap.xml

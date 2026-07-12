@@ -3,7 +3,6 @@ import {
   BRAND,
   CONTACT,
   TESTIMONIALS,
-  TEAM,
   FAQ,
   SAMPLES,
 } from "./data.js";
@@ -64,14 +63,19 @@ export const fetchMessages = () => api("/messages");
 export const deleteMessage = (id) => api(`/messages/${id}`, { method: "DELETE" });
 
 // ---------------------------------------------------------------------------
-// Presentation content (testimonials, team, FAQ, samples, hero settings) is
+// Presentation content (testimonials, FAQ, samples, hero settings) is
 // still local: it's public site copy the admin can tweak per deployment.
 // ---------------------------------------------------------------------------
 const K_SETTINGS = "rnbsn_settings";
 const K_TESTIMONIALS = "rnbsn_testimonials";
-const K_TEAM = "rnbsn_team";
 const K_FAQ = "rnbsn_faq";
 const K_SAMPLES = "rnbsn_samples";
+
+// The team section was removed from the site — clear any stale copy left in
+// visitors' browsers from earlier deployments.
+try {
+  localStorage.removeItem("rnbsn_team");
+} catch {}
 
 function readJSON(key, fallback) {
   try {
@@ -121,7 +125,6 @@ function usePersistent(key, initial) {
 export function AppProvider({ children }) {
   const [settings, setSettings] = useState(() => ({ ...DEFAULT_SETTINGS, ...readJSON(K_SETTINGS, {}) }));
   const [testimonials, setTestimonials] = usePersistent(K_TESTIMONIALS, TESTIMONIALS);
-  const [team, setTeam] = usePersistent(K_TEAM, TEAM);
   const [faq, setFaq] = usePersistent(K_FAQ, FAQ);
   const [samplePapers, setSamplePapers] = usePersistent(K_SAMPLES, SAMPLES);
 
@@ -170,11 +173,6 @@ export function AppProvider({ children }) {
       updateTestimonial: (t) => setTestimonials((p) => p.map((x) => (x.id === t.id ? t : x))),
       deleteTestimonial: (id) => setTestimonials((p) => p.filter((x) => x.id !== id)),
 
-      team,
-      addTeamMember: (t) => setTeam((p) => [...p, { id: uid("team"), ...t }]),
-      updateTeamMember: (t) => setTeam((p) => p.map((x) => (x.id === t.id ? t : x))),
-      deleteTeamMember: (id) => setTeam((p) => p.filter((x) => x.id !== id)),
-
       faq,
       addFAQ: (f) => setFaq((p) => [...p, { id: uid("faq"), ...f }]),
       updateFAQ: (f) => setFaq((p) => p.map((x) => (x.id === f.id ? f : x))),
@@ -185,7 +183,7 @@ export function AppProvider({ children }) {
       updateSamplePaper: (s) => setSamplePapers((p) => p.map((x) => (x.id === s.id ? s : x))),
       deleteSamplePaper: (id) => setSamplePapers((p) => p.filter((x) => x.id !== id)),
     }),
-    [user, authChecked, settings, testimonials, team, faq, samplePapers]
+    [user, authChecked, settings, testimonials, faq, samplePapers]
   );
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
