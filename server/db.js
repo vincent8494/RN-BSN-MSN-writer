@@ -5,27 +5,36 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ENV } from "./env.js";
 
-const dir = path.dirname(fileURLToPath(import.meta.url));
+// import.meta.url is unavailable when bundled to CJS (Netlify Functions) —
+// serverless always uses Turso, so the file path only matters locally.
+let dir;
+try {
+  dir = path.dirname(fileURLToPath(import.meta.url));
+} catch {
+  dir = path.join(process.cwd(), "server");
+}
 const url = ENV.TURSO_DATABASE_URL || `file:${path.join(dir, "data.sqlite")}`;
 
-if (ENV.IS_PROD && !ENV.TURSO_DATABASE_URL && ENV.IS_SERVERLESS) {
-  throw new Error("TURSO_DATABASE_URL is required in production — a serverless filesystem cannot persist SQLite.");
+// Lazy — a file: client would try to open the SQLite file immediately, which
+// must not happen at module scope on a read-only serverless filesystem; the
+// misconfiguration check in init() has to run first.
+let clientInstance = null;
+function client() {
+  if (!clientInstance) {
+    clientInstance = createClient({ url, authToken: ENV.TURSO_AUTH_TOKEN || undefined });
+  }
+  return clientInstance;
 }
-
-export const client = createClient({
-  url,
-  authToken: ENV.TURSO_AUTH_TOKEN || undefined,
-});
 
 // Thin async helpers (libsql's execute() with better-sqlite3-like results).
 export async function all(sql, args = []) {
-  return (await client.execute({ sql, args })).rows;
+  return (await client().execute({ sql, args })).rows;
 }
 export async function get(sql, args = []) {
-  return (await client.execute({ sql, args })).rows[0];
+  return (await client().execute({ sql, args })).rows[0];
 }
 export async function run(sql, args = []) {
-  const r = await client.execute({ sql, args });
+  const r = await client().execute({ sql, args });
   return {
     changes: r.rowsAffected,
     lastInsertRowid: r.lastInsertRowid === undefined ? undefined : Number(r.lastInsertRowid),
@@ -107,16 +116,19 @@ const MIGRATIONS = [
 ];
 
 async function init() {
+  if (ENV.IS_SERVERLESS && !ENV.TURSO_DATABASE_URL) {
+    throw new Error("TURSO_DATABASE_URL is required in production — a serverless filesystem cannot persist SQLite.");
+  }
   if (url.startsWith("file:")) {
     try {
-      await client.execute("PRAGMA journal_mode = WAL");
-      await client.execute("PRAGMA foreign_keys = ON");
+      await client().execute("PRAGMA journal_mode = WAL");
+      await client().execute("PRAGMA foreign_keys = ON");
     } catch {}
   }
-  await client.batch(SCHEMA, "write");
+  await client().batch(SCHEMA, "write");
   for (const sql of MIGRATIONS) {
     try {
-      await client.execute(sql);
+      await client().execute(sql);
     } catch {}
   }
 }

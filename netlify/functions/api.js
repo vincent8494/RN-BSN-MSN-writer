@@ -13,6 +13,16 @@ const wrapped = serverless(app, {
 });
 
 export const handler = async (event, context) => {
-  await ready; // schema + admin seed complete before serving
+  try {
+    await ready; // schema + admin seed complete before serving
+  } catch (e) {
+    // Fail closed with clean JSON (e.g. Turso or ADMIN_PASSWORD not set yet).
+    console.error("[api] startup failed:", e.message);
+    return {
+      statusCode: 503,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ error: "Service is not fully configured yet. Please try again later." }),
+    };
+  }
   return wrapped(event, context);
 };

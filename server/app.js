@@ -467,3 +467,7 @@ async function seedAdmin() {
 
 // Awaited before the first request is served (schema + admin seed).
 export const ready = dbReady.then(seedAdmin);
+// A misconfiguration rejects `ready` during module load, before any awaiter is
+// attached — swallow that here so Node doesn't kill the process; every request
+// path still awaits `ready` and reports the failure.
+ready.catch(() => {});

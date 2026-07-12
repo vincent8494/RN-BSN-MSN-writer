@@ -4,9 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const envPath = path.join(path.dirname(fileURLToPath(import.meta.url)), ".env");
+// import.meta.url is unavailable when bundled to CJS (Netlify Functions) —
+// there is no .env file there anyway, env comes from the site settings.
+let envPath = "";
+try {
+  envPath = path.join(path.dirname(fileURLToPath(import.meta.url)), ".env");
+} catch {}
 
-if (fs.existsSync(envPath)) {
+if (envPath && fs.existsSync(envPath)) {
   for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/i);
     if (m && process.env[m[1]] === undefined) {
