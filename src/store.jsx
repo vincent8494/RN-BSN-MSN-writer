@@ -5,6 +5,7 @@ import {
   TESTIMONIALS,
   FAQ,
   SAMPLES,
+  DEFAULT_PRICING,
 } from "./data.js";
 
 export const ORDER_STATUSES = [
@@ -68,6 +69,7 @@ export const deleteMessage = (id) => api(`/messages/${id}`, { method: "DELETE" }
 // ---------------------------------------------------------------------------
 export const fetchContent = () => api("/content");
 export const saveSiteSettings = (settings) => api("/settings", { method: "PUT", body: settings });
+export const savePricingConfig = (pricing) => api("/pricing", { method: "PUT", body: pricing });
 const createContent = (kind, item) => api(`/content/${kind}`, { method: "POST", body: item });
 const updateContentItem = (kind, id, item) =>
   api(`/content/${kind}/${encodeURIComponent(id)}`, { method: "PUT", body: item });
@@ -98,6 +100,7 @@ export function AppProvider({ children }) {
   // Start from the bundled defaults so the first paint has content, then the
   // server's live content replaces them once /api/content resolves.
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [testimonials, setTestimonials] = useState(TESTIMONIALS);
   const [faq, setFaq] = useState(FAQ);
   const [samplePapers, setSamplePapers] = useState(SAMPLES);
@@ -118,6 +121,7 @@ export function AppProvider({ children }) {
     fetchContent().then((res) => {
       if (!alive || res.error) return;
       if (res.settings) setSettings((prev) => ({ ...prev, ...res.settings }));
+      if (res.pricing) setPricing(res.pricing);
       if (Array.isArray(res.testimonials)) setTestimonials(res.testimonials);
       if (Array.isArray(res.faq)) setFaq(res.faq);
       if (Array.isArray(res.samples)) setSamplePapers(res.samples);
@@ -150,6 +154,13 @@ export function AppProvider({ children }) {
       updateSettings: async (s) => {
         const res = await saveSiteSettings(s);
         if (res.settings) setSettings(res.settings);
+        return res;
+      },
+
+      pricing,
+      updatePricing: async (p) => {
+        const res = await savePricingConfig(p);
+        if (res.pricing) setPricing(res.pricing);
         return res;
       },
 
@@ -204,7 +215,7 @@ export function AppProvider({ children }) {
         return res;
       },
     }),
-    [user, authChecked, settings, testimonials, faq, samplePapers]
+    [user, authChecked, settings, pricing, testimonials, faq, samplePapers]
   );
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

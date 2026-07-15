@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   Shield, Mail, Lock, LogOut, LayoutDashboard, FileText, Star,
   HelpCircle, FileStack, Inbox, Settings as SettingsIcon, Trash2, Pencil,
-  Plus, X, CheckCircle2, CreditCard, XCircle,
+  Plus, X, CheckCircle2, CreditCard, XCircle, DollarSign,
 } from "lucide-react";
 import { navigate } from "../router.jsx";
 import Logo from "../components/Logo.jsx";
@@ -11,7 +11,7 @@ import {
   useApp, fetchOrders, setOrderStatus, fetchMessages, deleteMessage, ORDER_STATUSES,
   fetchPayments, verifyPayment, rejectPayment,
 } from "../store.jsx";
-import { BRAND } from "../data.js";
+import { BRAND, ACADEMIC_LEVELS, DEADLINES } from "../data.js";
 
 const STATUS_STYLES = {
   "In Progress": "bg-blue-100 text-blue-700",
@@ -33,6 +33,7 @@ const TABS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "orders", label: "Orders", icon: FileText },
   { id: "payments", label: "Payments", icon: CreditCard },
+  { id: "pricing", label: "Pricing", icon: DollarSign },
   { id: "testimonials", label: "Testimonials", icon: Star },
   { id: "faq", label: "FAQ", icon: HelpCircle },
   { id: "samples", label: "Samples", icon: FileStack },
@@ -356,6 +357,7 @@ export default function Admin() {
           </>
         )}
 
+        {tab === "pricing" && <PricingPanel app={app} notify={notify} />}
         {tab === "settings" && <SettingsPanel app={app} notify={notify} />}
       </main>
 
@@ -447,6 +449,161 @@ function EditModal({ edit, app, onClose, notify }) {
         </form>
       </div>
     </div>
+  );
+}
+
+// Compact numeric cell for the price grid.
+function NumCell({ value, onChange, prefix }) {
+  return (
+    <div className="relative">
+      {prefix && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{prefix}</span>}
+      <input
+        type="number" min="0" step="0.01" value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full ${prefix ? "pl-5" : "pl-2"} pr-1 py-2 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:border-academic-500`}
+      />
+    </div>
+  );
+}
+
+// Admin pricing editor — the per-page grid, service multipliers, slide price,
+// coupon and flat-rate cards. Saving pushes the whole config to the server,
+// which becomes the authoritative source for order totals and every price
+// shown on the site.
+function PricingPanel({ app, notify }) {
+  const [p, setP] = useState(() => JSON.parse(JSON.stringify(app.pricing)));
+  const [saving, setSaving] = useState(false);
+  const levels = ACADEMIC_LEVELS;
+
+  const setPerPage = (lvl, key, v) =>
+    setP((prev) => ({ ...prev, perPage: { ...prev.perPage, [lvl]: { ...prev.perPage[lvl], [key]: v } } }));
+  const setMult = (key, v) =>
+    setP((prev) => ({ ...prev, serviceMultipliers: { ...prev.serviceMultipliers, [key]: v } }));
+  const setTop = (key, v) => setP((prev) => ({ ...prev, [key]: v }));
+  const setCoupon = (key, v) => setP((prev) => ({ ...prev, coupon: { ...prev.coupon, [key]: v } }));
+  const setCard = (i, key, v) =>
+    setP((prev) => ({ ...prev, classRates: prev.classRates.map((c, idx) => (idx === i ? { ...c, [key]: v } : c)) }));
+  const addCard = () =>
+    setP((prev) => ({ ...prev, classRates: [...prev.classRates, { id: `rate-${Date.now()}`, school: "", program: "", rate: "$", unit: "per class", alt: "", features: [], popular: false }] }));
+  const removeCard = (i) => setP((prev) => ({ ...prev, classRates: prev.classRates.filter((_, idx) => idx !== i) }));
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    const res = await app.updatePricing(p);
+    setSaving(false);
+    if (res?.error) { notify(res.error); return; }
+    if (res?.pricing) setP(JSON.parse(JSON.stringify(res.pricing)));
+    notify("Pricing updated — live on the site.");
+  };
+
+  const cell = "px-2 py-2 text-center";
+  return (
+    <form onSubmit={save} className="space-y-8 max-w-5xl">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-2xl font-bold text-slate-900">Pricing</h1>
+        <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">{saving ? "Saving..." : "Save Pricing"}</button>
+      </div>
+      <p className="text-sm text-slate-500 -mt-4">Changes go live immediately for every visitor and become the amount the server charges on new orders.</p>
+
+      {/* Per-page rate grid */}
+      <section className="card-academic p-5">
+        <h2 className="font-bold text-slate-900 mb-1">Per-Page Rates (USD)</h2>
+        <p className="text-xs text-slate-500 mb-4">Base price per page by academic level and deadline. Drives the order calculator and the charged total.</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th className="px-2 py-2 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Level</th>
+                {DEADLINES.map((d) => <th key={d.key} className={`${cell} text-xs font-bold text-slate-600`}>{d.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {levels.map((lvl) => (
+                <tr key={lvl} className="border-t border-slate-100">
+                  <td className="px-2 py-2 font-semibold text-slate-800 whitespace-nowrap">{lvl}</td>
+                  {DEADLINES.map((d) => (
+                    <td key={d.key} className="px-1 py-1 min-w-[64px]">
+                      <NumCell prefix="$" value={p.perPage[lvl]?.[d.key] ?? ""} onChange={(v) => setPerPage(lvl, d.key, v)} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Multipliers, slide price, coupon */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <section className="card-academic p-5">
+          <h2 className="font-bold text-slate-900 mb-1">Service Multipliers</h2>
+          <p className="text-xs text-slate-500 mb-4">Per-page rate is multiplied by this for each service type.</p>
+          <div className="space-y-3">
+            {[["writing", "Writing from scratch"], ["editing", "Editing & rewriting"], ["proofreading", "Proofreading"]].map(([key, lbl]) => (
+              <div key={key} className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-700">{lbl}</span>
+                <div className="w-24"><NumCell prefix="×" value={p.serviceMultipliers[key] ?? ""} onChange={(v) => setMult(key, v)} /></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="card-academic p-5">
+          <h2 className="font-bold text-slate-900 mb-1">Add-ons & Coupon</h2>
+          <p className="text-xs text-slate-500 mb-4">Slide price and the first-order discount code.</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-slate-700">Price per slide</span>
+              <div className="w-24"><NumCell prefix="$" value={p.pricePerSlide ?? ""} onChange={(v) => setTop("pricePerSlide", v)} /></div>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-slate-700">Coupon code</span>
+              <input value={p.coupon?.code ?? ""} onChange={(e) => setCoupon("code", e.target.value)} placeholder="e.g. NEW20" className="w-32 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-academic-500" />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-slate-700">Discount %</span>
+              <div className="w-24"><NumCell prefix="%" value={p.coupon?.percent ?? ""} onChange={(v) => setCoupon("percent", v)} /></div>
+            </div>
+            <p className="text-[11px] text-slate-400">Set the code blank to disable the discount. Applies once per customer on their first order.</p>
+          </div>
+        </section>
+      </div>
+
+      {/* Flat-rate cards */}
+      <section className="card-academic p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-bold text-slate-900">Flat-Rate Cards</h2>
+          <button type="button" onClick={addCard} className="inline-flex items-center gap-1.5 text-sm font-semibold text-academic-600 hover:text-academic-700 cursor-pointer"><Plus className="w-4 h-4" /> Add card</button>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">The per-class price cards on the Pricing page and home page.</p>
+        <div className="space-y-4">
+          {p.classRates.map((c, i) => (
+            <div key={c.id || i} className="rounded-xl border border-slate-200 p-4 relative">
+              <button type="button" onClick={() => removeCard(i)} aria-label="Remove card" className="absolute top-3 right-3 text-slate-400 hover:text-red-500 cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+                <Field label="School" value={c.school} onChange={(e) => setCard(i, "school", e.target.value)} />
+                <Field label="Program" value={c.program} onChange={(e) => setCard(i, "program", e.target.value)} />
+                <Field label="Rate" value={c.rate} onChange={(e) => setCard(i, "rate", e.target.value)} />
+                <Field label="Unit" value={c.unit} onChange={(e) => setCard(i, "unit", e.target.value)} />
+                <Field label="Sub-note" value={c.alt} onChange={(e) => setCard(i, "alt", e.target.value)} />
+                <label className="flex items-end gap-2 pb-2.5 text-sm text-slate-700">
+                  <input type="checkbox" checked={!!c.popular} onChange={(e) => setCard(i, "popular", e.target.checked)} className="w-4 h-4" /> Most popular
+                </label>
+              </div>
+              <Area label="Features (one per line)" rows={4} value={(c.features || []).join("\n")} onChange={(e) => setCard(i, "features", e.target.value.split("\n").map((f) => f.trim()).filter(Boolean))} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4">
+          <Area label="Note under the cards" rows={2} value={p.classNote ?? ""} onChange={(e) => setTop("classNote", e.target.value)} />
+        </div>
+      </section>
+
+      <div className="flex justify-end">
+        <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">{saving ? "Saving..." : "Save Pricing"}</button>
+      </div>
+    </form>
   );
 }
 

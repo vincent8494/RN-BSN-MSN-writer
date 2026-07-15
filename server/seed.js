@@ -56,3 +56,39 @@ export const CONTENT_FIELDS = {
 };
 
 export const CONTENT_SEED = { testimonials: TESTIMONIALS, faq: FAQ, samples: SAMPLES };
+
+// ---------------------------------------------------------------------------
+// Pricing — the single source of truth for what customers are charged. The
+// server recomputes every order total from this config (client totals are
+// never trusted), and the same config drives the order-form calculator and the
+// Pricing page so displayed and charged prices always match. Admin-editable so
+// rates can change seasonally.
+// ---------------------------------------------------------------------------
+export const PRICE_LEVELS = ["High School", "College", "BSN", "MSN", "DNP", "Social Work"];
+export const DEADLINE_KEYS = ["days14", "days7", "days5", "days3", "days2", "days1", "hours8"];
+export const SERVICE_KEYS = ["writing", "editing", "proofreading"];
+
+export const DEFAULT_PRICING = {
+  perPage: {
+    "High School": { days14: 10, days7: 11, days5: 12, days3: 14, days2: 15, days1: 16, hours8: 18 },
+    "College":     { days14: 11, days7: 12, days5: 13, days3: 15, days2: 16, days1: 18, hours8: 20 },
+    "BSN":         { days14: 12, days7: 13, days5: 15, days3: 16, days2: 18, days1: 20, hours8: 22 },
+    "MSN":         { days14: 14, days7: 15, days5: 17, days3: 18, days2: 20, days1: 22, hours8: 25 },
+    "DNP":         { days14: 15, days7: 16, days5: 18, days3: 20, days2: 22, days1: 25, hours8: 28 },
+    "Social Work": { days14: 12, days7: 13, days5: 15, days3: 16, days2: 18, days1: 20, hours8: 22 },
+  },
+  serviceMultipliers: { writing: 1.0, editing: 0.7, proofreading: 0.5 },
+  pricePerSlide: 5,
+  coupon: { code: "NEW20", percent: 20 },
+  classRates: [
+    { id: "post-bsn", school: "Post University", program: "RN-to-BSN", rate: "$250", unit: "per class", alt: "or $12 / page", features: ["All BSN courses", "Practicum (PE) hours covered", "Discussions & capstone", "24-hour turnaround"], popular: false },
+    { id: "capella-bsnmsn", school: "Capella University", program: "BSN & MSN", rate: "$300", unit: "per class", alt: "FlexPath & GuidedPath", features: ["Full NURS-FPX support", "Assessments & capstones", "Distinguished grades", "Unlimited revisions"], popular: true },
+    { id: "capella-dnp", school: "Capella University", program: "DNP", rate: "$15", unit: "per page", alt: "NHS-8002 → NURS-8024", features: ["Full DNP program", "Project & practicum help", "PhD-prepared writers", "Confidential & original"], popular: false },
+    { id: "sophia", school: "Sophia Learning", program: "Transfer Courses", rate: "$200", unit: "per class", alt: "Fast completion", features: ["Gen-ed & science courses", "Quizzes & milestones", "Fast turnaround", "Ace-and-transfer ready"], popular: false },
+  ],
+  classNote:
+    "Rates vary by school, program level and deadline. WGU, SNHU, GCU, Walden, Herzing, South & Penn Foster are quoted on request. Message us on WhatsApp for an instant, no-obligation quote.",
+};
+
+// Service display labels are content, not price inputs — kept static.
+export const SERVICE_LABELS = { writing: "Writing from scratch", editing: "Editing & rewriting", proofreading: "Proofreading" };

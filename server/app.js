@@ -4,9 +4,9 @@ import crypto from "node:crypto";
 import { ENV } from "./env.js";
 import {
   get, all, run, dbReady, nextOrderNumber,
-  getSettings, saveSettings, listContent,
+  getSettings, saveSettings, listContent, getPricing, savePricing,
 } from "./db.js";
-import { CONTENT_FIELDS } from "./seed.js";
+import { CONTENT_FIELDS, SERVICE_KEYS, SERVICE_LABELS } from "./seed.js";
 import {
   hashPassword, verifyPassword, createSession, destroySession, publicUser,
   sessionMiddleware, requireAuth, requireAdmin, rateLimit,
@@ -139,36 +139,29 @@ const ORDER_STATUSES = ["Awaiting Payment", "Payment Under Review", "In Progress
 // Pricing — the server is the single source of truth. Client-sent totals are
 // ignored; the amount is recomputed here so it cannot be tampered with.
 // ---------------------------------------------------------------------------
-const PRICE_TABLE = {
-  "High School": { days14: 10, days7: 11, days5: 12, days3: 14, days2: 15, days1: 16, hours8: 18 },
-  "College":     { days14: 11, days7: 12, days5: 13, days3: 15, days2: 16, days1: 18, hours8: 20 },
-  "BSN":         { days14: 12, days7: 13, days5: 15, days3: 16, days2: 18, days1: 20, hours8: 22 },
-  "MSN":         { days14: 14, days7: 15, days5: 17, days3: 18, days2: 20, days1: 22, hours8: 25 },
-  "DNP":         { days14: 15, days7: 16, days5: 18, days3: 20, days2: 22, days1: 25, hours8: 28 },
-  "Social Work": { days14: 12, days7: 13, days5: 15, days3: 16, days2: 18, days1: 20, hours8: 22 },
-};
-const SERVICE_MULT = { writing: 1.0, editing: 0.7, proofreading: 0.5 };
-const SERVICE_LABEL = { writing: "Writing from scratch", editing: "Editing & rewriting", proofreading: "Proofreading" };
-const PRICE_PER_SLIDE = 5;
 const PAYMENT_METHODS = ["paypal", "card", "whatsapp"];
 
-// NEW20 is a first-order coupon: one use per account / guest email.
-async function couponDiscount(coupon, userId, guestEmail) {
-  if (String(coupon || "").trim().toLowerCase() !== "new20") return 0;
+// The coupon is a first-order code: one use per account / guest email. Its code
+// and percentage come from the admin-editable pricing config.
+async function couponDiscount(pricing, coupon, userId, guestEmail) {
+  const code = pricing.coupon.code.trim().toLowerCase();
+  if (!code || String(coupon || "").trim().toLowerCase() !== code) return 0;
   let prior = null;
   if (userId) {
-    prior = await get("SELECT 1 FROM orders WHERE user_id = ? AND lower(coupon) = 'new20' AND status != 'Cancelled' LIMIT 1", [userId]);
+    prior = await get("SELECT 1 FROM orders WHERE user_id = ? AND lower(coupon) = ? AND status != 'Cancelled' LIMIT 1", [userId, code]);
   } else if (guestEmail) {
-    prior = await get("SELECT 1 FROM orders WHERE guest_email = ? AND lower(coupon) = 'new20' AND status != 'Cancelled' LIMIT 1", [guestEmail]);
+    prior = await get("SELECT 1 FROM orders WHERE guest_email = ? AND lower(coupon) = ? AND status != 'Cancelled' LIMIT 1", [guestEmail, code]);
   }
-  return prior ? 0 : 0.2;
+  return prior ? 0 : pricing.coupon.percent / 100;
 }
 
-async function computeTotal({ level, deadlineKey, pages, slides, serviceKey, coupon, userId, guestEmail }) {
-  const perPage = PRICE_TABLE[level]?.[deadlineKey] ?? 12;
-  const mult = SERVICE_MULT[serviceKey] ?? 1.0;
-  const subtotal = perPage * pages * mult + slides * PRICE_PER_SLIDE;
-  const total = subtotal * (1 - (await couponDiscount(coupon, userId, guestEmail)));
+// Authoritative total — computed from the live pricing config, never trusting
+// the client. `pricing` is loaded once per request and passed in.
+async function computeTotal(pricing, { level, deadlineKey, pages, slides, serviceKey, coupon, userId, guestEmail }) {
+  const perPage = pricing.perPage[level]?.[deadlineKey] ?? 12;
+  const mult = pricing.serviceMultipliers[serviceKey] ?? 1.0;
+  const subtotal = perPage * pages * mult + slides * pricing.pricePerSlide;
+  const total = subtotal * (1 - (await couponDiscount(pricing, coupon, userId, guestEmail)));
   return Math.round(total * 100) / 100;
 }
 
@@ -211,10 +204,12 @@ app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => 
   const pages = Math.min(200, Math.max(1, parseInt(b.pages, 10) || 1));
   const slides = Math.min(50, Math.max(0, parseInt(b.slides, 10) || 0));
   const sources = Math.min(50, Math.max(0, parseInt(b.sources, 10) || 0));
-  const serviceKey = SERVICE_MULT[b.service] !== undefined ? b.service : "writing";
+  const serviceKey = SERVICE_KEYS.includes(b.service) ? b.service : "writing";
   const guestEmail = req.user ? "" : clean(b.guestEmail, 200).toLowerCase();
-  // Authoritative amount — client-sent totals are never trusted.
-  const total = await computeTotal({
+  // Authoritative amount — recomputed from the live pricing config; client-sent
+  // totals are never trusted.
+  const pricing = await getPricing();
+  const total = await computeTotal(pricing, {
     level: clean(b.academicLevel, 40),
     deadlineKey: b.deadline,
     pages,
@@ -240,7 +235,7 @@ app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => 
       clean(b.paperType, 100),
       clean(b.academicLevel, 40),
       clean(b.school, 100),
-      SERVICE_LABEL[serviceKey],
+      SERVICE_LABELS[serviceKey],
       clean(b.subject, 300),
       pages,
       slides,
@@ -464,13 +459,20 @@ function sanitizeContent(kind, body) {
 }
 
 app.get("/api/content", async (_req, res) => {
-  const [settings, testimonials, faq, samples] = await Promise.all([
+  const [settings, pricing, testimonials, faq, samples] = await Promise.all([
     getSettings(),
+    getPricing(),
     listContent("testimonials"),
     listContent("faq"),
     listContent("samples"),
   ]);
-  res.json({ settings, testimonials, faq, samples });
+  res.json({ settings, pricing, testimonials, faq, samples });
+});
+
+app.put("/api/pricing", requireAdmin, async (req, res) => {
+  // savePricing normalizes and clamps every field, so a malformed body can
+  // never produce an unsafe price. Returns the stored (clean) config.
+  res.json({ pricing: await savePricing(req.body || {}) });
 });
 
 app.put("/api/settings", requireAdmin, async (req, res) => {

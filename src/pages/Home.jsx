@@ -12,7 +12,7 @@ import StatsStrip from "../components/StatsStrip.jsx";
 import TestimonialCarousel from "../components/TestimonialCarousel.jsx";
 import {
   BRAND, CONTACT, UNIVERSITIES, SCHOOLS, WHY_CHOOSE, SERVICES_OFFERED,
-  STEPS, PRICING, PROGRAMS_SUPPORTED, waMessage, SITE_URL,
+  STEPS, PROGRAMS_SUPPORTED, waMessage, SITE_URL,
 } from "../data.js";
 
 const fadeUp = {
@@ -330,6 +330,7 @@ function HowItWorksPreview() {
 
 /* --------------------------------------------------------- Pricing preview */
 function PricingPreview() {
+  const { pricing } = useApp();
   return (
     <section className="py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -339,7 +340,7 @@ function PricingPreview() {
           <p className="text-slate-600">Clear per-class and per-page rates. No hidden fees — ever.</p>
         </motion.div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {PRICING.map((p, i) => (
+          {(pricing.classRates || []).map((p, i) => (
             <motion.div
               key={p.id} {...fadeUp} transition={{ delay: i * 0.05 }}
               className={`card-academic p-6 relative ${p.popular ? "ring-2 ring-academic-500 shadow-xl" : ""}`}

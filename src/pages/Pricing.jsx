@@ -3,9 +3,13 @@ import { CheckCircle2, MessageCircle, ArrowRight } from "lucide-react";
 import { navigate } from "../router.jsx";
 import Pic from "../components/Pic.jsx";
 import CTABanner from "../components/CTABanner.jsx";
-import { PRICING, PRICING_NOTE, PRICE_TABLE, DEADLINES, UNIVERSITIES, CONTACT, waMessage } from "../data.js";
+import { ACADEMIC_LEVELS, DEADLINES, UNIVERSITIES, CONTACT, waMessage } from "../data.js";
+import { useApp } from "../store.jsx";
 
 export default function Pricing() {
+  // Live, admin-editable pricing (same config the order form and server use).
+  const { pricing } = useApp();
+  const classRates = pricing.classRates || [];
   return (
     <main>
       <section className="bg-gradient-to-br from-academic-600 via-academic-700 to-academic-900 text-white pt-28 pb-16">
@@ -20,7 +24,7 @@ export default function Pricing() {
       <section className="py-16 bg-slate-50 -mt-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {PRICING.map((p, i) => (
+            {classRates.map((p, i) => (
               <motion.div
                 key={p.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
                 className={`card-academic p-6 relative ${p.popular ? "ring-2 ring-academic-500 shadow-xl" : ""}`}
@@ -44,7 +48,7 @@ export default function Pricing() {
               </motion.div>
             ))}
           </div>
-          <p className="text-center text-sm text-slate-500 max-w-3xl mx-auto mt-8">{PRICING_NOTE}</p>
+          <p className="text-center text-sm text-slate-500 max-w-3xl mx-auto mt-8">{pricing.classNote}</p>
         </div>
       </section>
 
@@ -67,11 +71,11 @@ export default function Pricing() {
                 </tr>
               </thead>
               <tbody>
-                {PRICE_TABLE.map((row) => (
-                  <tr key={row.level} className={`border-t border-slate-100 hover:bg-academic-50/50 transition-colors ${row.level === "BSN" ? "bg-academic-50/30" : ""}`}>
-                    <td className={`px-4 py-4 font-bold ${row.level === "BSN" ? "text-academic-700" : "text-slate-900"}`}>{row.level}</td>
+                {ACADEMIC_LEVELS.map((lvl) => (
+                  <tr key={lvl} className={`border-t border-slate-100 hover:bg-academic-50/50 transition-colors ${lvl === "BSN" ? "bg-academic-50/30" : ""}`}>
+                    <td className={`px-4 py-4 font-bold ${lvl === "BSN" ? "text-academic-700" : "text-slate-900"}`}>{lvl}</td>
                     {DEADLINES.map((d) => (
-                      <td key={d.key} className={`px-3 py-4 text-center font-semibold ${d.key === "days3" ? "bg-academic-50/50 text-academic-700" : "text-slate-700"}`}>${row[d.key]}</td>
+                      <td key={d.key} className={`px-3 py-4 text-center font-semibold ${d.key === "days3" ? "bg-academic-50/50 text-academic-700" : "text-slate-700"}`}>${pricing.perPage[lvl]?.[d.key] ?? "—"}</td>
                     ))}
                   </tr>
                 ))}

@@ -2,10 +2,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { FileText, Upload, X, ArrowLeft, ArrowRight, MessageCircle, ShieldCheck } from "lucide-react";
 import { navigate } from "../router.jsx";
-import { createOrder } from "../store.jsx";
+import { createOrder, useApp } from "../store.jsx";
 import {
   UNIVERSITIES, SERVICES_OFFERED, ACADEMIC_LEVELS, DEADLINES,
-  pricePerPage, CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE, PRICE_PER_SLIDE,
+  CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE,
 } from "../data.js";
 
 const PAPER_TYPES = SERVICES_OFFERED.map((s) => s.name);
@@ -77,12 +77,17 @@ export default function OrderNow() {
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState("");
 
+  // Live pricing from the server (same config the server charges against).
+  const { pricing } = useApp();
   const serviceType = SERVICE_TYPES.find((s) => s.key === service) || SERVICE_TYPES[0];
-  const perPage = pricePerPage(level, deadline);
-  const pagesCost = perPage * pages * serviceType.multiplier;
-  const slidesCost = slides * PRICE_PER_SLIDE;
+  const perPage = pricing.perPage[level]?.[deadline] ?? 12;
+  const serviceMult = pricing.serviceMultipliers[service] ?? 1;
+  const pagesCost = perPage * pages * serviceMult;
+  const slidesCost = slides * pricing.pricePerSlide;
   const subtotal = pagesCost + slidesCost;
-  const discount = coupon.trim().toLowerCase() === "new20" ? subtotal * 0.2 : 0;
+  const couponCode = (pricing.coupon?.code || "").trim();
+  const couponMatches = couponCode && coupon.trim().toLowerCase() === couponCode.toLowerCase();
+  const discount = couponMatches ? subtotal * ((pricing.coupon?.percent || 0) / 100) : 0;
   const total = Math.max(0, subtotal - discount);
   const words = pages * WORDS_PER_PAGE;
   const schoolValue = school === "Other / Not listed" ? (otherSchool.trim() || "Other") : school;
@@ -173,7 +178,9 @@ export default function OrderNow() {
               <div className="mb-4">
                 <span className={label}>Service Type</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="group" aria-label="Service type">
-                  {SERVICE_TYPES.map((s) => (
+                  {SERVICE_TYPES.map((s) => {
+                    const mult = pricing.serviceMultipliers[s.key] ?? s.multiplier;
+                    return (
                     <button
                       key={s.key}
                       type="button"
@@ -184,9 +191,10 @@ export default function OrderNow() {
                       }`}
                     >
                       {s.label}
-                      {s.multiplier < 1 && <span className={`block text-[10px] font-medium mt-0.5 ${service === s.key ? "text-academic-100" : "text-emerald-600"}`}>save {Math.round((1 - s.multiplier) * 100)}%</span>}
+                      {mult < 1 && <span className={`block text-[10px] font-medium mt-0.5 ${service === s.key ? "text-academic-100" : "text-emerald-600"}`}>save {Math.round((1 - mult) * 100)}%</span>}
                     </button>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-4 mb-4">
@@ -224,7 +232,7 @@ export default function OrderNow() {
                 <div>
                   <label htmlFor="ord-slides" className={label}>Slides</label>
                   <Stepper id="ord-slides" label="slides" value={slides} onChange={setSlides} min={0} max={MAX_SLIDES} />
-                  <p className="text-[11px] text-slate-400 mt-1">${PRICE_PER_SLIDE} per slide</p>
+                  <p className="text-[11px] text-slate-400 mt-1">${pricing.pricePerSlide} per slide</p>
                 </div>
                 <div>
                   <label htmlFor="ord-sources" className={label}>Sources</label>
@@ -297,13 +305,13 @@ export default function OrderNow() {
                 <div className="flex justify-between"><dt className="text-slate-500">Pages</dt><dd className="font-medium text-slate-900">{pages} <span className="text-slate-400 font-normal">(~{words.toLocaleString()} words)</span></dd></div>
                 {slides > 0 && <div className="flex justify-between"><dt className="text-slate-500">Slides</dt><dd className="font-medium text-slate-900">{slides} (+${slidesCost.toFixed(2)})</dd></div>}
                 <div className="flex justify-between"><dt className="text-slate-500">Deadline</dt><dd className="font-medium text-slate-900">{DEADLINES.find((d) => d.key === deadline)?.label}</dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Price / page</dt><dd className="font-medium text-slate-900">${(perPage * serviceType.multiplier).toFixed(2)}</dd></div>
+                <div className="flex justify-between"><dt className="text-slate-500">Price / page</dt><dd className="font-medium text-slate-900">${(perPage * serviceMult).toFixed(2)}</dd></div>
               </dl>
 
               <div className="mt-4">
                 <label htmlFor="ord-coupon" className={label}>Coupon code</label>
-                <input id="ord-coupon" value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Try NEW20" className={field} />
-                {discount > 0 && <p className="text-xs text-emerald-600 mt-1.5 font-medium">NEW20 applied — 20% off your first order (verified at checkout).</p>}
+                <input id="ord-coupon" value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder={couponCode ? `Try ${couponCode}` : "Coupon code"} className={field} />
+                {discount > 0 && <p className="text-xs text-emerald-600 mt-1.5 font-medium">{couponCode} applied — {pricing.coupon.percent}% off your first order (verified at checkout).</p>}
               </div>
 
               <div className="border-t border-slate-100 mt-5 pt-4 space-y-2">

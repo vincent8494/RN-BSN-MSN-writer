@@ -4,7 +4,10 @@ import { createClient } from "@libsql/client";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ENV } from "./env.js";
-import { DEFAULT_SETTINGS, CONTENT_SEED } from "./seed.js";
+import {
+  DEFAULT_SETTINGS, CONTENT_SEED,
+  DEFAULT_PRICING, PRICE_LEVELS, DEADLINE_KEYS, SERVICE_KEYS,
+} from "./seed.js";
 
 // import.meta.url is unavailable when bundled to CJS (Netlify Functions) —
 // serverless always uses Turso, so the file path only matters locally.
@@ -166,6 +169,72 @@ async function seedContent() {
   if (!s) {
     await run("INSERT INTO kv (key, value) VALUES ('site_settings', ?)", [JSON.stringify(DEFAULT_SETTINGS)]);
   }
+  const p = await get("SELECT value FROM kv WHERE key = 'pricing'");
+  if (!p) {
+    await run("INSERT INTO kv (key, value) VALUES ('pricing', ?)", [JSON.stringify(DEFAULT_PRICING)]);
+  }
+}
+
+const num = (v, fallback = 0) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : fallback);
+
+// Coerce a pricing object into a complete, safe shape. Every numeric slot is
+// guaranteed present and non-negative, so order totals can never NaN or go
+// negative regardless of what is stored. Used on both read and write.
+export function normalizePricing(input) {
+  const src = input && typeof input === "object" ? input : {};
+  const perPage = {};
+  for (const level of PRICE_LEVELS) {
+    const row = src.perPage?.[level] || {};
+    const defRow = DEFAULT_PRICING.perPage[level];
+    perPage[level] = {};
+    for (const key of DEADLINE_KEYS) perPage[level][key] = num(row[key], defRow[key]);
+  }
+  const serviceMultipliers = {};
+  for (const key of SERVICE_KEYS) {
+    serviceMultipliers[key] = num(src.serviceMultipliers?.[key], DEFAULT_PRICING.serviceMultipliers[key]);
+  }
+  const couponPercent = Math.min(100, Math.max(0, num(src.coupon?.percent, DEFAULT_PRICING.coupon.percent)));
+  const classRates = Array.isArray(src.classRates)
+    ? src.classRates.slice(0, 12).map((c, i) => ({
+        id: String(c?.id || `rate-${i}`).slice(0, 60),
+        school: String(c?.school ?? "").slice(0, 120),
+        program: String(c?.program ?? "").slice(0, 120),
+        rate: String(c?.rate ?? "").slice(0, 40),
+        unit: String(c?.unit ?? "").slice(0, 40),
+        alt: String(c?.alt ?? "").slice(0, 120),
+        features: Array.isArray(c?.features) ? c.features.slice(0, 10).map((f) => String(f).slice(0, 120)) : [],
+        popular: Boolean(c?.popular),
+      }))
+    : DEFAULT_PRICING.classRates;
+  return {
+    perPage,
+    serviceMultipliers,
+    pricePerSlide: num(src.pricePerSlide, DEFAULT_PRICING.pricePerSlide),
+    coupon: {
+      code: String(src.coupon?.code ?? DEFAULT_PRICING.coupon.code).trim().slice(0, 40),
+      percent: couponPercent,
+    },
+    classRates,
+    classNote: String(src.classNote ?? DEFAULT_PRICING.classNote).slice(0, 600),
+  };
+}
+
+export async function getPricing() {
+  const row = await get("SELECT value FROM kv WHERE key = 'pricing'");
+  let stored = {};
+  try {
+    stored = row ? JSON.parse(row.value) : {};
+  } catch {}
+  return normalizePricing(stored);
+}
+
+export async function savePricing(next) {
+  const clean = normalizePricing(next);
+  await run(
+    "INSERT INTO kv (key, value) VALUES ('pricing', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    [JSON.stringify(clean)]
+  );
+  return clean;
 }
 
 // Read the site settings (merged over defaults so new keys always resolve).

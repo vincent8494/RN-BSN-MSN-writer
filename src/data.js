@@ -603,3 +603,15 @@ export function pricePerPage(level, deadlineKey) {
   const v = row[deadlineKey];
   return typeof v === "number" ? v : 12;
 }
+
+// Client fallback for the live pricing config (/api/content -> pricing). Derived
+// from the constants above so it stays in sync; the server is authoritative.
+// Keep the shape identical to server/seed.js DEFAULT_PRICING.
+export const DEFAULT_PRICING = {
+  perPage: Object.fromEntries(PRICE_TABLE.map(({ level, ...rates }) => [level, rates])),
+  serviceMultipliers: Object.fromEntries(SERVICE_TYPES.map((s) => [s.key, s.multiplier])),
+  pricePerSlide: PRICE_PER_SLIDE,
+  coupon: { code: "NEW20", percent: 20 },
+  classRates: PRICING,
+  classNote: PRICING_NOTE,
+};
