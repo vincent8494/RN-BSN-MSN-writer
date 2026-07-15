@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import {
   BRAND,
   CONTACT,
@@ -63,39 +63,24 @@ export const fetchMessages = () => api("/messages");
 export const deleteMessage = (id) => api(`/messages/${id}`, { method: "DELETE" });
 
 // ---------------------------------------------------------------------------
-// Presentation content (testimonials, FAQ, samples, hero settings) is
-// still local: it's public site copy the admin can tweak per deployment.
+// Site content — testimonials, FAQ, samples and hero/contact settings now live
+// on the server, so an edit in /admin is instantly live for every visitor.
 // ---------------------------------------------------------------------------
-const K_SETTINGS = "rnbsn_settings";
-const K_TESTIMONIALS = "rnbsn_testimonials";
-const K_FAQ = "rnbsn_faq";
-const K_SAMPLES = "rnbsn_samples";
+export const fetchContent = () => api("/content");
+export const saveSiteSettings = (settings) => api("/settings", { method: "PUT", body: settings });
+const createContent = (kind, item) => api(`/content/${kind}`, { method: "POST", body: item });
+const updateContentItem = (kind, id, item) =>
+  api(`/content/${kind}/${encodeURIComponent(id)}`, { method: "PUT", body: item });
+const deleteContentItem = (kind, id) =>
+  api(`/content/${kind}/${encodeURIComponent(id)}`, { method: "DELETE" });
 
-// The team section was removed from the site — clear any stale copy left in
-// visitors' browsers from earlier deployments.
+// One-time cleanup: earlier builds cached this content per browser. It is
+// server-backed now, so drop the stale localStorage copies.
 try {
-  localStorage.removeItem("rnbsn_team");
-} catch {}
-
-function readJSON(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
+  for (const k of ["rnbsn_team", "rnbsn_settings", "rnbsn_testimonials", "rnbsn_faq", "rnbsn_samples"]) {
+    localStorage.removeItem(k);
   }
-}
-function writeJSON(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
-
-let uidCounter = 0;
-function uid(prefix) {
-  uidCounter += 1;
-  return `${prefix}-${Date.now().toString(36)}-${uidCounter}-${Math.random().toString(36).slice(2, 7)}`;
-}
+} catch {}
 
 const DEFAULT_SETTINGS = {
   heroTagline: `${BRAND.name} — ${BRAND.tagline}`,
@@ -109,24 +94,13 @@ const DEFAULT_SETTINGS = {
 
 const AppCtx = createContext(undefined);
 
-function usePersistent(key, initial) {
-  const [state, setState] = useState(() => readJSON(key, initial));
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    writeJSON(key, state);
-  }, [key, state]);
-  return [state, setState];
-}
-
 export function AppProvider({ children }) {
-  const [settings, setSettings] = useState(() => ({ ...DEFAULT_SETTINGS, ...readJSON(K_SETTINGS, {}) }));
-  const [testimonials, setTestimonials] = usePersistent(K_TESTIMONIALS, TESTIMONIALS);
-  const [faq, setFaq] = usePersistent(K_FAQ, FAQ);
-  const [samplePapers, setSamplePapers] = usePersistent(K_SAMPLES, SAMPLES);
+  // Start from the bundled defaults so the first paint has content, then the
+  // server's live content replaces them once /api/content resolves.
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [testimonials, setTestimonials] = useState(TESTIMONIALS);
+  const [faq, setFaq] = useState(FAQ);
+  const [samplePapers, setSamplePapers] = useState(SAMPLES);
 
   // Session user, restored from the HttpOnly cookie via /api/auth/me.
   const [user, setUser] = useState(null);
@@ -138,6 +112,15 @@ export function AppProvider({ children }) {
       if (!alive) return;
       setUser(res.user || null);
       setAuthChecked(true);
+    });
+    // Live site content from the server (falls back to the bundled defaults on
+    // error, so the marketing pages always render something).
+    fetchContent().then((res) => {
+      if (!alive || res.error) return;
+      if (res.settings) setSettings((prev) => ({ ...prev, ...res.settings }));
+      if (Array.isArray(res.testimonials)) setTestimonials(res.testimonials);
+      if (Array.isArray(res.faq)) setFaq(res.faq);
+      if (Array.isArray(res.samples)) setSamplePapers(res.samples);
     });
     return () => {
       alive = false;
@@ -164,24 +147,62 @@ export function AppProvider({ children }) {
       },
 
       settings,
-      updateSettings: (s) => {
-        setSettings(s);
-        writeJSON(K_SETTINGS, s);
+      updateSettings: async (s) => {
+        const res = await saveSiteSettings(s);
+        if (res.settings) setSettings(res.settings);
+        return res;
       },
+
       testimonials,
-      addTestimonial: (t) => setTestimonials((p) => [...p, { id: uid("t"), ...t }]),
-      updateTestimonial: (t) => setTestimonials((p) => p.map((x) => (x.id === t.id ? t : x))),
-      deleteTestimonial: (id) => setTestimonials((p) => p.filter((x) => x.id !== id)),
+      addTestimonial: async (t) => {
+        const res = await createContent("testimonials", t);
+        if (res.item) setTestimonials((p) => [...p, res.item]);
+        return res;
+      },
+      updateTestimonial: async (t) => {
+        const res = await updateContentItem("testimonials", t.id, t);
+        if (res.item) setTestimonials((p) => p.map((x) => (x.id === t.id ? res.item : x)));
+        return res;
+      },
+      deleteTestimonial: async (id) => {
+        const res = await deleteContentItem("testimonials", id);
+        if (!res.error) setTestimonials((p) => p.filter((x) => x.id !== id));
+        return res;
+      },
 
       faq,
-      addFAQ: (f) => setFaq((p) => [...p, { id: uid("faq"), ...f }]),
-      updateFAQ: (f) => setFaq((p) => p.map((x) => (x.id === f.id ? f : x))),
-      deleteFAQ: (id) => setFaq((p) => p.filter((x) => x.id !== id)),
+      addFAQ: async (f) => {
+        const res = await createContent("faq", f);
+        if (res.item) setFaq((p) => [...p, res.item]);
+        return res;
+      },
+      updateFAQ: async (f) => {
+        const res = await updateContentItem("faq", f.id, f);
+        if (res.item) setFaq((p) => p.map((x) => (x.id === f.id ? res.item : x)));
+        return res;
+      },
+      deleteFAQ: async (id) => {
+        const res = await deleteContentItem("faq", id);
+        if (!res.error) setFaq((p) => p.filter((x) => x.id !== id));
+        return res;
+      },
 
       samplePapers,
-      addSamplePaper: (s) => setSamplePapers((p) => [...p, { id: uid("sample"), ...s }]),
-      updateSamplePaper: (s) => setSamplePapers((p) => p.map((x) => (x.id === s.id ? s : x))),
-      deleteSamplePaper: (id) => setSamplePapers((p) => p.filter((x) => x.id !== id)),
+      addSamplePaper: async (s) => {
+        const res = await createContent("samples", s);
+        if (res.item) setSamplePapers((p) => [...p, res.item]);
+        return res;
+      },
+      updateSamplePaper: async (s) => {
+        const res = await updateContentItem("samples", s.id, s);
+        if (res.item) setSamplePapers((p) => p.map((x) => (x.id === s.id ? res.item : x)));
+        return res;
+      },
+      deleteSamplePaper: async (id) => {
+        const res = await deleteContentItem("samples", id);
+        if (!res.error) setSamplePapers((p) => p.filter((x) => x.id !== id));
+        return res;
+      },
     }),
     [user, authChecked, settings, testimonials, faq, samplePapers]
   );

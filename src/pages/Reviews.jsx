@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Star, MessageCircle, BadgeCheck } from "lucide-react";
-import { REVIEWS, CONTACT } from "../data.js";
+import { CONTACT } from "../data.js";
+import { useApp } from "../store.jsx";
 import StatsStrip from "../components/StatsStrip.jsx";
 import CTABanner from "../components/CTABanner.jsx";
 
@@ -15,6 +16,8 @@ function Stars({ n }) {
 }
 
 export default function Reviews() {
+  // Same server-backed testimonials the home carousel uses, managed from /admin.
+  const { testimonials } = useApp();
   return (
     <main>
       <section className="bg-gradient-to-br from-academic-600 via-academic-700 to-academic-900 text-white pt-28 pb-16">
@@ -32,7 +35,7 @@ export default function Reviews() {
       <section className="py-16 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="columns-1 md:columns-2 lg:columns-3 gap-6 [column-fill:_balance]">
-            {REVIEWS.map((r, i) => (
+            {testimonials.map((r, i) => (
               <motion.figure
                 key={r.id}
                 initial={{ opacity: 0, y: 30 }}
@@ -47,10 +50,10 @@ export default function Reviews() {
                     <BadgeCheck className="w-3.5 h-3.5" aria-hidden="true" /> Verified client
                   </span>
                 </div>
-                <blockquote className="text-sm text-slate-600 leading-relaxed mb-4">“{r.text}”</blockquote>
+                <blockquote className="text-sm text-slate-600 leading-relaxed mb-4">“{r.feedback}”</blockquote>
                 <figcaption>
                   <p className="font-bold text-slate-900 text-sm">{r.name}</p>
-                  <p className="text-xs text-academic-600 font-medium">{r.school}</p>
+                  <p className="text-xs text-academic-600 font-medium">{r.role}</p>
                 </figcaption>
               </motion.figure>
             ))}

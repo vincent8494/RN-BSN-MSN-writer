@@ -2,7 +2,11 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import crypto from "node:crypto";
 import { ENV } from "./env.js";
-import { get, all, run, dbReady, nextOrderNumber } from "./db.js";
+import {
+  get, all, run, dbReady, nextOrderNumber,
+  getSettings, saveSettings, listContent,
+} from "./db.js";
+import { CONTENT_FIELDS } from "./seed.js";
 import {
   hashPassword, verifyPassword, createSession, destroySession, publicUser,
   sessionMiddleware, requireAuth, requireAdmin, rateLimit,
@@ -435,6 +439,81 @@ app.get("/api/messages", requireAdmin, async (_req, res) => {
 
 app.delete("/api/messages/:id", requireAdmin, async (req, res) => {
   await run("DELETE FROM messages WHERE id = ?", [req.params.id]);
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Site content — testimonials, FAQ, samples and hero/contact settings. Reads
+// are public (they drive the marketing pages); writes are admin-only, so an
+// edit in /admin is immediately live for every visitor.
+// ---------------------------------------------------------------------------
+const CONTENT_KINDS = Object.keys(CONTENT_FIELDS);
+
+// Keep only whitelisted fields, coercing the two numeric ones and capping
+// string lengths so a stored item can never bloat or carry stray keys.
+function sanitizeContent(kind, body) {
+  const out = {};
+  for (const field of CONTENT_FIELDS[kind]) {
+    const v = body?.[field];
+    if (field === "rating") out.rating = Math.min(5, Math.max(1, parseInt(v, 10) || 5));
+    else if (field === "pages") out.pages = Math.min(500, Math.max(1, parseInt(v, 10) || 1));
+    else if (field === "order") out.order = Math.max(0, parseInt(v, 10) || 0);
+    else out[field] = String(v ?? "").slice(0, 4000);
+  }
+  return out;
+}
+
+app.get("/api/content", async (_req, res) => {
+  const [settings, testimonials, faq, samples] = await Promise.all([
+    getSettings(),
+    listContent("testimonials"),
+    listContent("faq"),
+    listContent("samples"),
+  ]);
+  res.json({ settings, testimonials, faq, samples });
+});
+
+app.put("/api/settings", requireAdmin, async (req, res) => {
+  const b = req.body || {};
+  const next = {
+    heroTagline: clean(b.heroTagline, 300),
+    heroTitle1: clean(b.heroTitle1, 200),
+    heroTitle2: clean(b.heroTitle2, 200),
+    heroDescription: clean(b.heroDescription, 1000),
+    contactLocation: clean(b.contactLocation, 200),
+    recipientEmail: clean(b.recipientEmail, 200),
+  };
+  res.json({ settings: await saveSettings(next) });
+});
+
+app.post("/api/content/:kind", requireAdmin, async (req, res) => {
+  const kind = req.params.kind;
+  if (!CONTENT_KINDS.includes(kind)) return res.status(404).json({ error: "Unknown content type." });
+  const fields = sanitizeContent(kind, req.body);
+  const id = `${kind}-${crypto.randomBytes(6).toString("hex")}`;
+  const max = await get("SELECT COALESCE(MAX(sort), 0) AS m FROM content WHERE kind = ?", [kind]);
+  const sort = typeof fields.order === "number" ? fields.order : Number(max.m) + 1;
+  await run("INSERT INTO content (kind, id, sort, data) VALUES (?, ?, ?, ?)", [kind, id, sort, JSON.stringify(fields)]);
+  res.json({ item: { id, ...fields } });
+});
+
+app.put("/api/content/:kind/:id", requireAdmin, async (req, res) => {
+  const kind = req.params.kind;
+  if (!CONTENT_KINDS.includes(kind)) return res.status(404).json({ error: "Unknown content type." });
+  const fields = sanitizeContent(kind, req.body);
+  const sort = typeof fields.order === "number" ? fields.order : undefined;
+  const info =
+    sort === undefined
+      ? await run("UPDATE content SET data = ? WHERE kind = ? AND id = ?", [JSON.stringify(fields), kind, req.params.id])
+      : await run("UPDATE content SET data = ?, sort = ? WHERE kind = ? AND id = ?", [JSON.stringify(fields), sort, kind, req.params.id]);
+  if (!info.changes) return res.status(404).json({ error: "Item not found." });
+  res.json({ item: { id: req.params.id, ...fields } });
+});
+
+app.delete("/api/content/:kind/:id", requireAdmin, async (req, res) => {
+  const kind = req.params.kind;
+  if (!CONTENT_KINDS.includes(kind)) return res.status(404).json({ error: "Unknown content type." });
+  await run("DELETE FROM content WHERE kind = ? AND id = ?", [kind, req.params.id]);
   res.json({ ok: true });
 });
 

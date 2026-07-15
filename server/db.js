@@ -4,6 +4,7 @@ import { createClient } from "@libsql/client";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ENV } from "./env.js";
+import { DEFAULT_SETTINGS, CONTENT_SEED } from "./seed.js";
 
 // import.meta.url is unavailable when bundled to CJS (Netlify Functions) —
 // serverless always uses Turso, so the file path only matters locally.
@@ -103,8 +104,18 @@ const SCHEMA = [
     count INTEGER NOT NULL,
     reset INTEGER NOT NULL
   )`,
+  // Admin-managed public content (testimonials / faq / samples). Item fields
+  // are stored as JSON in `data`; `sort` drives display order.
+  `CREATE TABLE IF NOT EXISTS content (
+    kind TEXT NOT NULL,
+    id   TEXT NOT NULL,
+    sort INTEGER NOT NULL DEFAULT 0,
+    data TEXT NOT NULL,
+    PRIMARY KEY (kind, id)
+  )`,
   `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_content_kind ON content(kind, sort)`,
 ];
 
 // Additive migrations (ALTER fails harmlessly when the column already exists).
@@ -130,6 +141,63 @@ async function init() {
     try {
       await client().execute(sql);
     } catch {}
+  }
+  await seedContent();
+}
+
+// Seed default content once. Each kind seeds independently only when empty, so
+// admin edits and deletions are never overwritten on the next boot.
+async function seedContent() {
+  for (const [kind, items] of Object.entries(CONTENT_SEED)) {
+    const existing = await get("SELECT COUNT(*) AS n FROM content WHERE kind = ?", [kind]);
+    if (Number(existing.n) > 0) continue;
+    let sort = 0;
+    for (const item of items) {
+      const { id, ...fields } = item;
+      await run("INSERT INTO content (kind, id, sort, data) VALUES (?, ?, ?, ?)", [
+        kind,
+        id,
+        typeof fields.order === "number" ? fields.order : ++sort,
+        JSON.stringify(fields),
+      ]);
+    }
+  }
+  const s = await get("SELECT value FROM kv WHERE key = 'site_settings'");
+  if (!s) {
+    await run("INSERT INTO kv (key, value) VALUES ('site_settings', ?)", [JSON.stringify(DEFAULT_SETTINGS)]);
+  }
+}
+
+// Read the site settings (merged over defaults so new keys always resolve).
+export async function getSettings() {
+  const row = await get("SELECT value FROM kv WHERE key = 'site_settings'");
+  let stored = {};
+  try {
+    stored = row ? JSON.parse(row.value) : {};
+  } catch {}
+  return { ...DEFAULT_SETTINGS, ...stored };
+}
+
+export async function saveSettings(next) {
+  const merged = { ...DEFAULT_SETTINGS, ...next };
+  await run(
+    "INSERT INTO kv (key, value) VALUES ('site_settings', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    [JSON.stringify(merged)]
+  );
+  return merged;
+}
+
+// Return all items of a kind as {id, ...fields}, ordered.
+export async function listContent(kind) {
+  const rows = await all("SELECT id, sort, data FROM content WHERE kind = ? ORDER BY sort, rowid", [kind]);
+  return rows.map((r) => ({ id: r.id, ...safeParse(r.data) }));
+}
+
+function safeParse(s) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return {};
   }
 }
 

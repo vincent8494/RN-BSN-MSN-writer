@@ -311,7 +311,7 @@ export default function Admin() {
             title="Testimonials" items={app.testimonials}
             onAdd={() => setEdit({ type: "testimonials", data: { name: "", role: "", feedback: "", rating: 5, avatar: "" } })}
             onEdit={(d) => setEdit({ type: "testimonials", data: d })}
-            onDelete={(id) => { app.deleteTestimonial(id); notify("Testimonial deleted."); }}
+            onDelete={async (id) => { const r = await app.deleteTestimonial(id); notify(r?.error || "Testimonial deleted."); }}
             render={(t) => (<><p className="font-semibold text-slate-900">{t.name}</p><p className="text-xs text-academic-600">{t.role}</p><p className="text-sm text-slate-600 mt-1 line-clamp-2">{t.feedback}</p></>)}
           />
         )}
@@ -320,7 +320,7 @@ export default function Admin() {
             title="FAQ" items={[...app.faq].sort((a, b) => a.order - b.order)}
             onAdd={() => setEdit({ type: "faq", data: { question: "", answer: "", order: app.faq.length + 1 } })}
             onEdit={(d) => setEdit({ type: "faq", data: d })}
-            onDelete={(id) => { app.deleteFAQ(id); notify("FAQ deleted."); }}
+            onDelete={async (id) => { const r = await app.deleteFAQ(id); notify(r?.error || "FAQ deleted."); }}
             render={(f) => (<><p className="font-semibold text-slate-900">{f.question}</p><p className="text-sm text-slate-600 mt-1 line-clamp-2">{f.answer}</p></>)}
           />
         )}
@@ -329,7 +329,7 @@ export default function Admin() {
             title="Samples" items={app.samplePapers}
             onAdd={() => setEdit({ type: "samples", data: { title: "", category: "", description: "", school: "", subject: "Nursing", level: "BSN", pages: 8 } })}
             onEdit={(d) => setEdit({ type: "samples", data: d })}
-            onDelete={(id) => { app.deleteSamplePaper(id); notify("Sample deleted."); }}
+            onDelete={async (id) => { const r = await app.deleteSamplePaper(id); notify(r?.error || "Sample deleted."); }}
             render={(s) => (<><p className="font-semibold text-slate-900">{s.title}</p><p className="text-xs text-academic-600">{s.category} · {s.school}</p><p className="text-sm text-slate-600 mt-1 line-clamp-2">{s.description}</p></>)}
           />
         )}
@@ -393,12 +393,18 @@ function EditModal({ edit, app, onClose, notify }) {
   const isNew = !edit.data.id;
   const upd = (k, v) => setData((d) => ({ ...d, [k]: v }));
 
-  const save = (e) => {
+  const [saving, setSaving] = useState(false);
+
+  const save = async (e) => {
     e.preventDefault();
     const { type } = edit;
-    if (type === "testimonials") isNew ? app.addTestimonial(data) : app.updateTestimonial(data);
-    else if (type === "faq") isNew ? app.addFAQ({ ...data, order: parseInt(data.order) || 1 }) : app.updateFAQ({ ...data, order: parseInt(data.order) || 1 });
-    else if (type === "samples") isNew ? app.addSamplePaper({ ...data, pages: parseInt(data.pages) || 1 }) : app.updateSamplePaper({ ...data, pages: parseInt(data.pages) || 1 });
+    setSaving(true);
+    let res;
+    if (type === "testimonials") res = isNew ? await app.addTestimonial(data) : await app.updateTestimonial(data);
+    else if (type === "faq") res = isNew ? await app.addFAQ({ ...data, order: parseInt(data.order) || 1 }) : await app.updateFAQ({ ...data, order: parseInt(data.order) || 1 });
+    else if (type === "samples") res = isNew ? await app.addSamplePaper({ ...data, pages: parseInt(data.pages) || 1 }) : await app.updateSamplePaper({ ...data, pages: parseInt(data.pages) || 1 });
+    setSaving(false);
+    if (res?.error) { notify(res.error); return; }
     notify(isNew ? "Added!" : "Updated!");
     onClose();
   };
@@ -436,7 +442,7 @@ function EditModal({ edit, app, onClose, notify }) {
           </>)}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">Cancel</button>
-            <button type="submit" className="btn-primary flex-1">Save</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving..." : "Save"}</button>
           </div>
         </form>
       </div>
@@ -447,7 +453,11 @@ function EditModal({ edit, app, onClose, notify }) {
 function SettingsPanel({ app, notify }) {
   const [s, setS] = useState(app.settings);
   const upd = (k, v) => setS((x) => ({ ...x, [k]: v }));
-  const save = (e) => { e.preventDefault(); app.updateSettings(s); notify("Settings saved!"); };
+  const save = async (e) => {
+    e.preventDefault();
+    const res = await app.updateSettings(s);
+    notify(res?.error || "Settings saved!");
+  };
   return (
     <>
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Site Settings</h1>

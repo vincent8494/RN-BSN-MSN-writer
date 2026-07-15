@@ -483,82 +483,6 @@ export const STATS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Full reviews page content
-// ---------------------------------------------------------------------------
-export const REVIEWS = [
-  {
-    id: "r1",
-    name: "Jeff C.",
-    school: "Lincoln University",
-    rating: 5,
-    text: "I just had the pleasure of using this team for a nursing project, and the quality and scope of their work left me speechless. The entire procedure was simple and efficient from start to finish, and their support team responded to every question promptly — I felt valued as a client the whole way through.",
-  },
-  {
-    id: "r2",
-    name: "Odiyobo A.",
-    school: "Newcastle University",
-    rating: 5,
-    text: "I have been sourcing all my assignments and coursework help here and would particularly recommend their nursing writing service to students at every level. You're guaranteed a high-quality paper within a considerable turnaround time, and their rates are affordable.",
-  },
-  {
-    id: "r3",
-    name: "Maya S.",
-    school: "Athabasca University",
-    rating: 5,
-    text: "The statistical and thematic analysis task was beyond what I expected from the writer. Thank you so much — this made completing my nursing thesis paper so much easier.",
-  },
-  {
-    id: "r4",
-    name: "Chelsea King",
-    school: "United States University",
-    rating: 5,
-    text: "This platform has a pool of talented academic experts. They guided me through the rigorous accelerated FPX program at Capella and the WGU accelerated program, helping me finish in record time. I call them my virtual tutors — they even check my announcements and notify me in time. You won't get it wrong placing an order here.",
-  },
-  {
-    id: "r5",
-    name: "Ademi Adeboye",
-    school: "Grand Canyon University",
-    rating: 5,
-    text: "The team helped run my FNP classes at both Grand Canyon University and Wilkes University. As a single mother balancing school, work and family, their highly experienced team of medical professionals chipped in to assist with full programs — I maintained a GPA of 4.0.",
-  },
-  {
-    id: "r6",
-    name: "Jesse Pierre",
-    school: "SNHU · Maryville University",
-    rating: 5,
-    text: "Highly responsible, professional writers with a medical background. I worked with them across my course period taking two classes at a time and attained an A of 90. They even guided me on using Kaltura to record my PowerPoint presentation and script. Currently taking my MSN — they are yet to disappoint.",
-  },
-  {
-    id: "r7",
-    name: "Marie Min Hung",
-    school: "GWU",
-    rating: 5,
-    text: "I want to applaud the team for their help with my nursing Ph.D. dissertation as well as my sister-in-law's DNP journey. Through brainstorming and research my topic was accepted, every chapter came back with minimal revisions, and I presented my Ph.D. on time — they walked me through the whole process up to the defense panel.",
-  },
-  {
-    id: "r8",
-    name: "Sarah M.",
-    school: "WGU",
-    rating: 5,
-    text: "As a working nurse and single mom, balancing the WGU D-courses was impossible until I found this team. Timely, original, and always on-rubric. They helped me keep a 4.0 through the whole RN-to-BSN track.",
-  },
-  {
-    id: "r9",
-    name: "James O.",
-    school: "Post University",
-    rating: 5,
-    text: "I was about to give up on my Post University practicum courses. They came through with expertly written, plagiarism-free work delivered before every deadline. Highly recommended!",
-  },
-  {
-    id: "r10",
-    name: "Emily W.",
-    school: "Grand Canyon University",
-    rating: 5,
-    text: "The support on my GCU social-work field-instruction papers and capstone was exceptional. Original, well-researched, and delivered exactly to the rubric. Worth every dollar.",
-  },
-];
-
-// ---------------------------------------------------------------------------
 // Order form extras (service types & add-ons for the price calculator)
 // ---------------------------------------------------------------------------
 export const SERVICE_TYPES = [
@@ -571,45 +495,21 @@ export const WORDS_PER_PAGE = 275;
 export const PRICE_PER_SLIDE = 5;
 
 // ---------------------------------------------------------------------------
-// Testimonials (placeholder reviews — editable from /admin)
+// Testimonials — client fallback for first paint. The live list is served from
+// the database (/api/content) and edited in /admin. Keep in sync with
+// server/seed.js. Drives both the home carousel and the /reviews page.
 // ---------------------------------------------------------------------------
 export const TESTIMONIALS = [
-  {
-    id: "t1",
-    name: "Chelsea K.",
-    role: "RN-to-MSN — Capella University",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&h=150&q=80",
-    feedback:
-      "They guided me through the accelerated FlexPath program at Capella and helped me finish in record time. Every assessment came back distinguished. I call them my virtual tutors — you won't get it wrong placing an order here!",
-    rating: 5,
-  },
-  {
-    id: "t2",
-    name: "Sarah M.",
-    role: "RN-to-BSN — WGU",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80",
-    feedback:
-      "As a working nurse and single mom, balancing the WGU D-courses was impossible until I found this team. Timely, original, and always on-rubric. They helped me keep a 4.0 through the whole RN-to-BSN track.",
-    rating: 5,
-  },
-  {
-    id: "t3",
-    name: "James O.",
-    role: "BSN-to-MSN — Post University",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80",
-    feedback:
-      "I was about to give up on my Post University practicum courses. They came through with expertly written, plagiarism-free work delivered before every deadline. Highly recommended!",
-    rating: 5,
-  },
-  {
-    id: "t4",
-    name: "Emily W.",
-    role: "MSW — Grand Canyon University",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150&q=80",
-    feedback:
-      "The support on my GCU social-work field-instruction papers and capstone was exceptional. Original, well-researched, and delivered exactly to the rubric. Worth every dollar.",
-    rating: 5,
-  },
+  { id: "t1", name: "Chelsea K.", role: "RN-to-MSN — Capella University", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&h=150&q=80", feedback: "They guided me through the accelerated FlexPath program at Capella and helped me finish in record time. Every assessment came back distinguished. I call them my virtual tutors — you won't get it wrong placing an order here!", rating: 5 },
+  { id: "t2", name: "Sarah M.", role: "RN-to-BSN — WGU", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80", feedback: "As a working nurse and single mom, balancing the WGU D-courses was impossible until I found this team. Timely, original, and always on-rubric. They helped me keep a 4.0 through the whole RN-to-BSN track.", rating: 5 },
+  { id: "t3", name: "James O.", role: "BSN-to-MSN — Post University", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80", feedback: "I was about to give up on my Post University practicum courses. They came through with expertly written, plagiarism-free work delivered before every deadline. Highly recommended!", rating: 5 },
+  { id: "t4", name: "Emily W.", role: "MSW — Grand Canyon University", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150&q=80", feedback: "The support on my GCU social-work field-instruction papers and capstone was exceptional. Original, well-researched, and delivered exactly to the rubric. Worth every dollar.", rating: 5 },
+  { id: "t5", name: "Jeff C.", role: "Lincoln University", avatar: "", feedback: "I just had the pleasure of using this team for a nursing project, and the quality and scope of their work left me speechless. The entire procedure was simple and efficient from start to finish, and their support team responded to every question promptly — I felt valued as a client the whole way through.", rating: 5 },
+  { id: "t6", name: "Odiyobo A.", role: "Newcastle University", avatar: "", feedback: "I have been sourcing all my assignments and coursework help here and would particularly recommend their nursing writing service to students at every level. You're guaranteed a high-quality paper within a considerable turnaround time, and their rates are affordable.", rating: 5 },
+  { id: "t7", name: "Maya S.", role: "Athabasca University", avatar: "", feedback: "The statistical and thematic analysis task was beyond what I expected from the writer. Thank you so much — this made completing my nursing thesis paper so much easier.", rating: 5 },
+  { id: "t8", name: "Ademi Adeboye", role: "Grand Canyon University", avatar: "", feedback: "The team helped run my FNP classes at both Grand Canyon University and Wilkes University. As a single mother balancing school, work and family, their highly experienced team of medical professionals chipped in to assist with full programs — I maintained a GPA of 4.0.", rating: 5 },
+  { id: "t9", name: "Jesse Pierre", role: "SNHU · Maryville University", avatar: "", feedback: "Highly responsible, professional writers with a medical background. I worked with them across my course period taking two classes at a time and attained an A of 90. They even guided me on using Kaltura to record my PowerPoint presentation and script. Currently taking my MSN — they are yet to disappoint.", rating: 5 },
+  { id: "t10", name: "Marie Min Hung", role: "GWU", avatar: "", feedback: "I want to applaud the team for their help with my nursing Ph.D. dissertation as well as my sister-in-law's DNP journey. Through brainstorming and research my topic was accepted, every chapter came back with minimal revisions, and I presented my Ph.D. on time — they walked me through the whole process up to the defense panel.", rating: 5 },
 ];
 
 // ---------------------------------------------------------------------------
