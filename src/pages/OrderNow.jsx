@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { FileText, Upload, X, ArrowLeft, ArrowRight, MessageCircle, ShieldCheck } from "lucide-react";
 import { navigate } from "../router.jsx";
-import { createOrder, useApp } from "../store.jsx";
+import { createOrder, uploadRequirement, useApp } from "../store.jsx";
 import {
   UNIVERSITIES, SERVICES_OFFERED, ACADEMIC_LEVELS, DEADLINES,
   CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE,
@@ -15,7 +15,7 @@ const MAX_PAGES = 200;
 const MAX_SOURCES = 50;
 const MAX_SLIDES = 50;
 const MAX_FILES = 10;
-const MAX_FILE_MB = 25;
+const MAX_FILE_MB = 4;
 
 function clampInt(value, min, max, fallback) {
   const n = parseInt(value, 10);
@@ -143,13 +143,26 @@ export default function OrderNow() {
       sources,
       coupon,
     });
-    setPlacing(false);
     if (res.error) {
+      setPlacing(false);
       setPlaceError(res.error);
       return;
     }
-    const token = res.order.accessToken ? `&t=${encodeURIComponent(res.order.accessToken)}` : "";
-    navigate(`/checkout?order=${encodeURIComponent(res.order.id)}${token}`);
+    // Attach the customer's requirement files to the new order (best effort).
+    const accessToken = res.order.accessToken;
+    let failed = 0;
+    for (const f of files) {
+      const up = await uploadRequirement(res.order.id, f, accessToken);
+      if (up.error) failed += 1;
+    }
+    setPlacing(false);
+    const tokenQ = accessToken ? `&t=${encodeURIComponent(accessToken)}` : "";
+    if (failed) {
+      setPlaceError(`Order placed, but ${failed} file(s) couldn't upload. Continue to checkout and send them on WhatsApp, or go back and retry.`);
+      setTimeout(() => navigate(`/checkout?order=${encodeURIComponent(res.order.id)}${tokenQ}`), 2500);
+      return;
+    }
+    navigate(`/checkout?order=${encodeURIComponent(res.order.id)}${tokenQ}`);
   };
 
   const field = "w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-academic-500/20 focus:border-academic-500 transition-all";
@@ -276,7 +289,7 @@ export default function OrderNow() {
                     Browse files
                   </span>
                   <input type="file" multiple className="sr-only" onChange={onPick} aria-label="Attach files" />
-                  <p className="text-[11px] text-slate-400 mt-3">Up to {MAX_FILES} files, {MAX_FILE_MB} MB each. You'll share files with your writer on WhatsApp after checkout.</p>
+                  <p className="text-[11px] text-slate-400 mt-3">Up to {MAX_FILES} files, {MAX_FILE_MB} MB each. Attached to your order for your writer — larger files can be shared on WhatsApp.</p>
                 </label>
               </div>
               {fileError && <p role="alert" className="mt-3 text-xs font-medium text-red-600">{fileError}</p>}
@@ -325,7 +338,7 @@ export default function OrderNow() {
 
               {placeError && <p role="alert" className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">{placeError}</p>}
               <button onClick={placeOrder} disabled={placing} className="btn-primary w-full mt-5 disabled:opacity-60">
-                {placing ? "Placing order..." : <>Proceed to Checkout <ArrowRight className="w-4 h-4" /></>}
+                {placing ? (files.length ? "Placing order & uploading files..." : "Placing order...") : <>Proceed to Checkout <ArrowRight className="w-4 h-4" /></>}
               </button>
               <a href={waMessage(`Hi! I'd like to order: ${serviceType.label} · ${paperType} · ${schoolValue} · ${level} · ${pages} pages${slides ? ` · ${slides} slides` : ""} · ${DEADLINES.find((d) => d.key === deadline)?.label}. Topic: ${topic || "N/A"}`)} target="_blank" rel="noreferrer" className="btn-whatsapp w-full mt-3 text-sm">
                 <MessageCircle className="w-4 h-4" /> Or order via WhatsApp

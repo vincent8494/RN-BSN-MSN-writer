@@ -5,8 +5,10 @@ import { ENV } from "./env.js";
 import {
   get, all, run, dbReady, nextOrderNumber,
   getSettings, saveSettings, listContent, getPricing, savePricing,
+  listAttachments, getAttachment, addAttachment, removeAttachment, countAttachments,
 } from "./db.js";
 import { CONTENT_FIELDS, SERVICE_KEYS, SERVICE_LABELS } from "./seed.js";
+import { putFile, getFile, deleteFile } from "./storage.js";
 import {
   hashPassword, verifyPassword, createSession, destroySession, publicUser,
   sessionMiddleware, requireAuth, requireAdmin, rateLimit,
@@ -401,11 +403,105 @@ app.patch("/api/orders/:id/status", requireAdmin, async (req, res) => {
 });
 
 app.delete("/api/orders/:id", requireAdmin, async (req, res) => {
-  // Remove dependent payments first — FK cascade isn't guaranteed on every
-  // libsql connection, so delete explicitly to avoid orphaned rows.
+  // Remove dependent payments and files first — FK cascade isn't guaranteed on
+  // every libsql connection, so delete explicitly to avoid orphaned rows/blobs.
+  for (const att of await listAttachments(req.params.id)) await deleteFile(att.id);
+  await run("DELETE FROM attachments WHERE order_id = ?", [req.params.id]);
   await run("DELETE FROM payments WHERE order_id = ?", [req.params.id]);
   const info = await run("DELETE FROM orders WHERE id = ?", [req.params.id]);
   if (!info.changes) return res.status(404).json({ error: "Order not found." });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Order files — requirement files (customer) and deliverables (writer/admin).
+// Bytes live in blob storage; metadata in the attachments table. Uploads arrive
+// as a raw binary body (octet-stream, so the global 64kb JSON parser skips
+// them); downloads go out as base64 JSON so binary works uniformly on
+// serverless. Per-file cap stays under the serverless request-body limit.
+// ---------------------------------------------------------------------------
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+const rawUpload = express.raw({ type: () => true, limit: "9mb" });
+const ALLOWED_UPLOAD = /\.(pdf|docx?|txt|rtf|pptx?|xlsx?|csv|zip|png|jpe?g|gif|webp)$/i;
+
+async function loadOrderForFiles(req, res) {
+  const o = await get("SELECT * FROM orders WHERE id = ?", [req.params.id]);
+  if (!o) { res.status(404).json({ error: "Order not found." }); return null; }
+  return o;
+}
+
+function readUpload(req, res) {
+  let filename = req.get("x-filename") || "file";
+  try { filename = decodeURIComponent(filename); } catch {}
+  filename = clean(filename, 200) || "file";
+  const mime = clean(req.get("x-file-mime") || "", 100);
+  const buf = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+  if (!buf.length) { res.status(400).json({ error: "Empty file." }); return null; }
+  if (buf.length > MAX_UPLOAD_BYTES) { res.status(413).json({ error: `File exceeds ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB.` }); return null; }
+  if (!ALLOWED_UPLOAD.test(filename)) { res.status(415).json({ error: "Unsupported file type." }); return null; }
+  return { filename, mime, buf };
+}
+
+app.get("/api/orders/:id/files", async (req, res) => {
+  const o = await loadOrderForFiles(req, res);
+  if (!o) return;
+  if (!canAccessOrder(req, o)) return res.status(403).json({ error: "You don't have access to this order." });
+  res.json({ files: await listAttachments(o.id) });
+});
+
+// Customer (or admin) uploads a requirement / source file.
+app.post("/api/orders/:id/files", rateLimit("upload", 80, 15 * 60e3), rawUpload, async (req, res) => {
+  const o = await loadOrderForFiles(req, res);
+  if (!o) return;
+  if (!canAccessOrder(req, o)) return res.status(403).json({ error: "You don't have access to this order." });
+  const up = readUpload(req, res);
+  if (!up) return;
+  const id = `att-${crypto.randomBytes(10).toString("hex")}`;
+  await putFile(id, up.buf);
+  await addAttachment({ id, orderId: o.id, kind: "requirement", filename: up.filename, mime: up.mime, size: up.buf.length, uploadedBy: req.user?.role === "admin" ? "admin" : "customer" });
+  res.json({ file: await getAttachment(id) });
+});
+
+// Writer/admin uploads the completed work → order auto-advances to Completed.
+app.post("/api/orders/:id/deliverable", requireAdmin, rateLimit("upload", 80, 15 * 60e3), rawUpload, async (req, res) => {
+  const o = await loadOrderForFiles(req, res);
+  if (!o) return;
+  const up = readUpload(req, res);
+  if (!up) return;
+  const id = `att-${crypto.randomBytes(10).toString("hex")}`;
+  await putFile(id, up.buf);
+  await addAttachment({ id, orderId: o.id, kind: "deliverable", filename: up.filename, mime: up.mime, size: up.buf.length, uploadedBy: "admin" });
+  await run("UPDATE orders SET status = 'Completed' WHERE id = ?", [o.id]);
+  res.json({ file: await getAttachment(id), order: orderRow(await get("SELECT * FROM orders WHERE id = ?", [o.id])) });
+});
+
+// Download a file — base64 JSON so it works on serverless without binary bodies.
+app.get("/api/orders/:id/files/:fileId/download", rateLimit("download", 200, 15 * 60e3), async (req, res) => {
+  const o = await loadOrderForFiles(req, res);
+  if (!o) return;
+  if (!canAccessOrder(req, o)) return res.status(403).json({ error: "You don't have access to this order." });
+  const att = await getAttachment(req.params.fileId);
+  if (!att || att.orderId !== o.id) return res.status(404).json({ error: "File not found." });
+  const buf = await getFile(att.id);
+  if (!buf) return res.status(404).json({ error: "File data is missing." });
+  res.json({ filename: att.filename, mime: att.mime, dataBase64: buf.toString("base64") });
+});
+
+// Delete a file — admin removes any; a customer may remove their own
+// requirement while the order is still awaiting payment.
+app.delete("/api/orders/:id/files/:fileId", async (req, res) => {
+  const o = await loadOrderForFiles(req, res);
+  if (!o) return;
+  const att = await getAttachment(req.params.fileId);
+  if (!att || att.orderId !== o.id) return res.status(404).json({ error: "File not found." });
+  const isAdmin = req.user?.role === "admin";
+  const ownRequirement = att.kind === "requirement" && canAccessOrder(req, o) && o.status === "Awaiting Payment";
+  if (!isAdmin && !ownRequirement) return res.status(403).json({ error: "Not allowed." });
+  await deleteFile(att.id);
+  await removeAttachment(att.id);
+  if (att.kind === "deliverable" && o.status === "Completed" && (await countAttachments(o.id, "deliverable")) === 0) {
+    await run("UPDATE orders SET status = 'In Progress' WHERE id = ?", [o.id]);
+  }
   res.json({ ok: true });
 });
 

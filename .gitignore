@@ -13,4 +13,7 @@ server/data.sqlite
 server/data.sqlite-shm
 server/data.sqlite-wal
 
+# Local uploaded files (production files live in Netlify Blobs)
+server/uploads/
+
 *.log

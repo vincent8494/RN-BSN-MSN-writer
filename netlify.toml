@@ -8,9 +8,9 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-  # @libsql/client ships platform-specific native pieces — include the package
-  # as-is rather than letting esbuild inline it.
-  external_node_modules = ["@libsql/client", "libsql"]
+  # @libsql/client ships platform-specific native pieces; @netlify/blobs needs
+  # the function runtime context — include both as-is rather than inlining.
+  external_node_modules = ["@libsql/client", "libsql", "@netlify/blobs"]
 
 # API → serverless function (rewrite, keeps /api/* URLs).
 [[redirects]]

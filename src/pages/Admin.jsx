@@ -3,13 +3,14 @@ import { motion } from "framer-motion";
 import {
   Shield, Mail, Lock, LogOut, LayoutDashboard, FileText, Star,
   HelpCircle, FileStack, Inbox, Settings as SettingsIcon, Trash2, Pencil,
-  Plus, X, CheckCircle2, CreditCard, XCircle, DollarSign,
+  Plus, X, CheckCircle2, CreditCard, XCircle, DollarSign, Eye, Download, Upload, Paperclip,
 } from "lucide-react";
 import { navigate } from "../router.jsx";
 import Logo from "../components/Logo.jsx";
 import {
   useApp, fetchOrders, setOrderStatus, deleteOrder, fetchMessages, deleteMessage, ORDER_STATUSES,
   fetchPayments, verifyPayment, rejectPayment,
+  listOrderFiles, uploadDeliverable, uploadRequirement, downloadOrderFile, removeOrderFile,
 } from "../store.jsx";
 import { BRAND, ACADEMIC_LEVELS, DEADLINES } from "../data.js";
 
@@ -137,6 +138,7 @@ export default function Admin() {
   const [messages, setMessages] = useState([]);
   const [toast, setToast] = useState("");
   const [edit, setEdit] = useState(null); // { type, data }
+  const [detailOrder, setDetailOrder] = useState(null); // order shown in the workspace modal
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -253,8 +255,9 @@ export default function Admin() {
                             {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <button onClick={() => removeOrder(o.id)} aria-label={`Delete order ${o.id}`} className="text-slate-400 hover:text-red-500 cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <button onClick={() => setDetailOrder(o)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-academic-600 hover:text-academic-700 mr-3 cursor-pointer"><Eye className="w-4 h-4" /> View</button>
+                          <button onClick={() => removeOrder(o.id)} aria-label={`Delete order ${o.id}`} className="text-slate-400 hover:text-red-500 cursor-pointer align-middle"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -372,6 +375,17 @@ export default function Admin() {
       </main>
 
       {edit && <EditModal edit={edit} app={app} onClose={() => setEdit(null)} notify={notify} />}
+      {detailOrder && (
+        <OrderDetailModal
+          order={detailOrder}
+          onClose={() => setDetailOrder(null)}
+          notify={notify}
+          onOrderChange={async (updated) => {
+            await refreshOrdersAndPayments();
+            setDetailOrder((cur) => (cur && updated && cur.id === updated.id ? { ...cur, ...updated } : cur));
+          }}
+        />
+      )}
       <Toast msg={toast} />
     </div>
   );
@@ -397,6 +411,166 @@ function CrudSection({ title, items, onAdd, onEdit, onDelete, render }) {
         {items.length === 0 && <p className="text-sm text-slate-500 col-span-2">Nothing here yet — click "Add" to create one.</p>}
       </div>
     </>
+  );
+}
+
+const fmtSize = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+function FileRow({ f, orderId, onDownload, onDelete }) {
+  return (
+    <div className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 bg-white">
+      <Paperclip className="w-4 h-4 text-slate-400 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-slate-800 truncate">{f.filename}</p>
+        <p className="text-[11px] text-slate-400">{fmtSize(f.size)} · {f.uploadedBy === "admin" ? "you" : "customer"}</p>
+      </div>
+      <button onClick={() => onDownload(f)} aria-label={`Download ${f.filename}`} className="p-1.5 rounded-lg text-academic-600 hover:bg-academic-50 cursor-pointer"><Download className="w-4 h-4" /></button>
+      {onDelete && <button onClick={() => onDelete(f)} aria-label={`Delete ${f.filename}`} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 cursor-pointer"><Trash2 className="w-4 h-4" /></button>}
+    </div>
+  );
+}
+
+// The writer workspace: full order requirements, customer files to download,
+// deliverable upload (auto-completes the order), and manual status control.
+function OrderDetailModal({ order, onClose, notify, onOrderChange }) {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState(order.status);
+
+  const load = async () => {
+    setLoading(true);
+    const res = await listOrderFiles(order.id);
+    setFiles(res.files || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [order.id]);
+
+  const requirements = files.filter((f) => f.kind === "requirement");
+  const deliverables = files.filter((f) => f.kind === "deliverable");
+
+  const download = async (f) => {
+    const r = await downloadOrderFile(order.id, f.id);
+    if (r.error) notify(r.error);
+  };
+  const del = async (f) => {
+    if (!window.confirm(`Delete "${f.filename}"?`)) return;
+    const r = await removeOrderFile(order.id, f.id);
+    if (r.error) return notify(r.error);
+    await load();
+    notify("File deleted.");
+    onOrderChange?.({ id: order.id });
+  };
+  const onDeliverable = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    const r = await uploadDeliverable(order.id, file);
+    setBusy(false);
+    if (r.error) return notify(r.error);
+    await load();
+    if (r.order) { setStatus(r.order.status); onOrderChange?.(r.order); }
+    notify("Work uploaded — order marked Completed. The customer can now download it.");
+  };
+  const onAddRequirement = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    const r = await uploadRequirement(order.id, file);
+    setBusy(false);
+    if (r.error) return notify(r.error);
+    await load();
+    notify("File added.");
+  };
+  const changeStatus = async (next) => {
+    setStatus(next);
+    const r = await setOrderStatus(order.id, next);
+    if (r.error) return notify(r.error);
+    onOrderChange?.({ id: order.id, status: next });
+    notify(`Status → "${next}"`);
+  };
+
+  const rows = [
+    ["Academic level", order.academicLevel], ["School / Program", order.school],
+    ["Service", order.service], ["Paper type", order.paperType],
+    ["Topic / Subject", order.subject], ["Pages", order.pages],
+    ["Slides", order.slides], ["Sources", order.sources],
+    ["Deadline", order.deadline], ["Coupon", order.coupon || "—"],
+    ["Total", `$${Number(order.total).toFixed(2)}`], ["Customer", order.guestEmail || "Registered account"],
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[150] bg-slate-900/60 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
+          <div>
+            <h3 className="font-bold text-slate-900">{order.id}</h3>
+            <p className="text-sm text-slate-500 truncate max-w-[420px]">{order.title}</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 cursor-pointer"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-5 space-y-6">
+          {/* Status */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Status</span>
+            <select value={status} onChange={(e) => changeStatus(e.target.value)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer ${STATUS_STYLES[status] || "bg-slate-100 text-slate-600"}`}>
+              {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          {/* Requirements / details */}
+          <div>
+            <h4 className="font-bold text-slate-900 mb-3">Order requirements</h4>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              {rows.map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-2 border-b border-slate-50 py-1">
+                  <dt className="text-slate-500">{k}</dt><dd className="font-medium text-slate-900 text-right">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            {order.description && (
+              <div className="mt-3">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Instructions</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-3">{order.description}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Customer files */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-bold text-slate-900">Customer files ({requirements.length})</h4>
+              <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-academic-600 hover:text-academic-700 cursor-pointer">
+                <Plus className="w-4 h-4" /> Add file
+                <input type="file" className="hidden" onChange={onAddRequirement} disabled={busy} />
+              </label>
+            </div>
+            {loading ? <p className="text-sm text-slate-400">Loading…</p> : requirements.length === 0 ? (
+              <p className="text-sm text-slate-400">No files from the customer.</p>
+            ) : (
+              <div className="space-y-2">{requirements.map((f) => <FileRow key={f.id} f={f} orderId={order.id} onDownload={download} onDelete={del} />)}</div>
+            )}
+          </div>
+
+          {/* Deliverables */}
+          <div>
+            <h4 className="font-bold text-slate-900 mb-1">Completed work</h4>
+            <p className="text-xs text-slate-500 mb-3">Upload the finished file — the order is marked <b>Completed</b> and the customer can download it.</p>
+            {deliverables.length > 0 && (
+              <div className="space-y-2 mb-3">{deliverables.map((f) => <FileRow key={f.id} f={f} orderId={order.id} onDownload={download} onDelete={del} />)}</div>
+            )}
+            <label className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${busy ? "border-slate-200 text-slate-400" : "border-academic-300 text-academic-700 hover:bg-academic-50"}`}>
+              <Upload className="w-4 h-4" /> {busy ? "Uploading…" : "Upload completed work"}
+              <input type="file" className="hidden" onChange={onDeliverable} disabled={busy} />
+            </label>
+            <p className="text-[11px] text-slate-400 mt-2">Max 4 MB per file. Accepted: pdf, doc(x), txt, rtf, ppt(x), xls(x), csv, zip, images.</p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

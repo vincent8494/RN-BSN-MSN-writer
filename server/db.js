@@ -116,9 +116,23 @@ const SCHEMA = [
     data TEXT NOT NULL,
     PRIMARY KEY (kind, id)
   )`,
+  // Order files. kind 'requirement' = customer's instructions/source files;
+  // 'deliverable' = the completed work uploaded by the writer/admin. Bytes are
+  // kept in blob storage (server/storage.js) keyed by this id.
+  `CREATE TABLE IF NOT EXISTS attachments (
+    id          TEXT PRIMARY KEY,
+    order_id    TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    kind        TEXT NOT NULL,
+    filename    TEXT NOT NULL,
+    mime        TEXT DEFAULT '',
+    size        INTEGER NOT NULL DEFAULT 0,
+    uploaded_by TEXT DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
   `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`,
   `CREATE INDEX IF NOT EXISTS idx_content_kind ON content(kind, sort)`,
+  `CREATE INDEX IF NOT EXISTS idx_attachments_order ON attachments(order_id)`,
 ];
 
 // Additive migrations (ALTER fails harmlessly when the column already exists).
@@ -268,6 +282,49 @@ function safeParse(s) {
   } catch {
     return {};
   }
+}
+
+// ---------------------------------------------------------------------------
+// Order attachments (requirement / deliverable file metadata)
+// ---------------------------------------------------------------------------
+const attachmentRow = (a) => ({
+  id: a.id,
+  orderId: a.order_id,
+  kind: a.kind,
+  filename: a.filename,
+  mime: a.mime,
+  size: a.size,
+  uploadedBy: a.uploaded_by,
+  createdAt: a.created_at,
+});
+
+export async function listAttachments(orderId) {
+  const rows = await all(
+    "SELECT * FROM attachments WHERE order_id = ? ORDER BY created_at, rowid",
+    [orderId]
+  );
+  return rows.map(attachmentRow);
+}
+
+export async function getAttachment(id) {
+  const a = await get("SELECT * FROM attachments WHERE id = ?", [id]);
+  return a ? attachmentRow(a) : null;
+}
+
+export async function addAttachment({ id, orderId, kind, filename, mime, size, uploadedBy }) {
+  await run(
+    "INSERT INTO attachments (id, order_id, kind, filename, mime, size, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [id, orderId, kind, filename, mime, size, uploadedBy]
+  );
+}
+
+export async function removeAttachment(id) {
+  await run("DELETE FROM attachments WHERE id = ?", [id]);
+}
+
+export async function countAttachments(orderId, kind) {
+  const r = await get("SELECT COUNT(*) AS n FROM attachments WHERE order_id = ? AND kind = ?", [orderId, kind]);
+  return Number(r.n);
 }
 
 // Resolves once the schema exists — awaited before serving any request.

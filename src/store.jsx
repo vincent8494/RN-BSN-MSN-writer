@@ -47,6 +47,63 @@ export const setOrderStatus = (id, status) =>
   api(`/orders/${encodeURIComponent(id)}/status`, { method: "PATCH", body: { status } });
 export const deleteOrder = (id) => api(`/orders/${encodeURIComponent(id)}`, { method: "DELETE" });
 
+// ---------------------------------------------------------------------------
+// Order files — requirement uploads (customer) and deliverables (writer/admin).
+// Uploads send the raw file bytes; downloads come back as base64 JSON which we
+// turn into a browser download. `token` is the guest order access token.
+// ---------------------------------------------------------------------------
+const fileQuery = (token) => (token ? `?t=${encodeURIComponent(token)}` : "");
+
+async function uploadFile(path, file) {
+  try {
+    const res = await fetch(`/api${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "x-filename": encodeURIComponent(file.name),
+        "x-file-mime": file.type || "application/octet-stream",
+      },
+      body: file,
+      credentials: "same-origin",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: data.error || `Upload failed (${res.status}).` };
+    return data;
+  } catch {
+    return { error: "Could not upload the file. Please try again." };
+  }
+}
+
+export const listOrderFiles = (id, token) =>
+  api(`/orders/${encodeURIComponent(id)}/files${fileQuery(token)}`);
+export const uploadRequirement = (id, file, token) =>
+  uploadFile(`/orders/${encodeURIComponent(id)}/files${fileQuery(token)}`, file);
+export const uploadDeliverable = (id, file) =>
+  uploadFile(`/orders/${encodeURIComponent(id)}/deliverable`, file);
+export const removeOrderFile = (id, fileId, token) =>
+  api(`/orders/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}${fileQuery(token)}`, { method: "DELETE" });
+
+// Fetch a file and trigger a browser download.
+export async function downloadOrderFile(id, fileId, token) {
+  const res = await api(`/orders/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}/download${fileQuery(token)}`);
+  if (res.error) return res;
+  try {
+    const bin = Uint8Array.from(atob(res.dataBase64), (c) => c.charCodeAt(0));
+    const blob = new Blob([bin], { type: res.mime || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = res.filename || "download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { ok: true };
+  } catch {
+    return { error: "Could not open the downloaded file." };
+  }
+}
+
 // Payments — automated gateways confirm themselves; manual proof is the fallback.
 export const fetchPayConfig = () => api("/pay/config");
 export const startGatewayPayment = (orderId, gateway, token) =>

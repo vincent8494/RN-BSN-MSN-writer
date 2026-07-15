@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LogOut, Plus, FileText, Clock, CheckCircle2, RefreshCw,
-  MessageCircle, Wallet, LayoutDashboard, ArrowRight,
+  MessageCircle, Wallet, LayoutDashboard, ArrowRight, Download,
 } from "lucide-react";
 import { navigate } from "../router.jsx";
 import Logo from "../components/Logo.jsx";
-import { useApp, fetchOrders } from "../store.jsx";
+import { useApp, fetchOrders, listOrderFiles, downloadOrderFile } from "../store.jsx";
 import { BRAND, CONTACT, waMessage } from "../data.js";
 
 const STATUS_STYLES = {
@@ -23,7 +23,22 @@ export default function Dashboard() {
   const { user, authChecked, logout } = useApp();
   const [orders, setOrders] = useState([]);
 
+  const [downloading, setDownloading] = useState("");
   const loadOrders = () => fetchOrders().then((res) => setOrders(res.orders || []));
+
+  // Fetch the order's deliverable(s) and download them.
+  const downloadWork = async (orderId) => {
+    setDownloading(orderId);
+    const res = await listOrderFiles(orderId);
+    const deliverables = (res.files || []).filter((f) => f.kind === "deliverable");
+    if (!deliverables.length) {
+      setDownloading("");
+      alert("Your completed work isn't available to download yet. Please check back shortly.");
+      return;
+    }
+    for (const f of deliverables) await downloadOrderFile(orderId, f.id);
+    setDownloading("");
+  };
 
   useEffect(() => {
     if (!authChecked) return;
@@ -89,6 +104,16 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* completion notice */}
+        {orders.some((o) => o.status === "Completed") && (
+          <div className="mb-6 card-academic p-4 bg-emerald-50 border-emerald-200 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <p className="text-sm text-emerald-800">
+              <b>{orders.filter((o) => o.status === "Completed").length}</b> of your orders {orders.filter((o) => o.status === "Completed").length === 1 ? "is" : "are"} complete — use the <b>Download Work</b> button to get your files.
+            </p>
+          </div>
+        )}
+
         {/* orders */}
         <div className="card-academic overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
@@ -127,6 +152,11 @@ export default function Dashboard() {
                       <td className="px-5 py-4 text-right whitespace-nowrap">
                         {o.status === "Awaiting Payment" && (
                           <button onClick={() => navigate(`/checkout?order=${encodeURIComponent(o.id)}`)} className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-academic-600 hover:bg-academic-700 px-3 py-1.5 rounded-lg mr-3 cursor-pointer">Pay Now</button>
+                        )}
+                        {o.status === "Completed" && (
+                          <button onClick={() => downloadWork(o.id)} disabled={downloading === o.id} className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg mr-3 cursor-pointer disabled:opacity-60">
+                            <Download className="w-3.5 h-3.5" /> {downloading === o.id ? "Preparing…" : "Download Work"}
+                          </button>
                         )}
                         <a href={waMessage(`Hi! About my order ${o.id} (${o.title}) —`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#25d366] hover:underline"><MessageCircle className="w-3.5 h-3.5" /> Message</a>
                       </td>
