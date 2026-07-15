@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, Lock, Eye, EyeOff, GraduationCap, ArrowRight, CheckCircle2 } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from "lucide-react";
+import Logo from "../components/Logo.jsx";
 import { navigate } from "../router.jsx";
 import { useApp } from "../store.jsx";
 import { BRAND, ACADEMIC_LEVELS } from "../data.js";
@@ -43,7 +44,7 @@ export default function Signup() {
         </div>
         <div className="relative z-10 flex flex-col justify-center px-16 w-full">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center mb-6"><GraduationCap className="w-7 h-7 text-white" /></div>
+            <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center mb-6"><Logo className="w-8 h-8 text-white" /></div>
             <h2 className="text-3xl font-bold text-white mb-4">Join {BRAND.short}</h2>
             <p className="text-academic-100 leading-relaxed max-w-md mb-8">Create an account to place orders, track progress and download your completed work — with distinguished grades guaranteed.</p>
             <ul className="space-y-3">

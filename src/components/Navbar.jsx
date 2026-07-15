@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, ArrowRight, GraduationCap } from "lucide-react";
+import { Menu, X, ArrowRight } from "lucide-react";
+import Logo from "./Logo.jsx";
 import { Link, usePath } from "../router.jsx";
 import { useApp } from "../store.jsx";
 import { NAV_ITEMS, BRAND, CONTACT } from "../data.js";
@@ -58,7 +59,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           <Link to="/" className="flex items-center gap-3 group cursor-pointer" aria-label={`${BRAND.short} — home`}>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-academic-500 to-academic-700 flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300">
-              <GraduationCap className="w-5 h-5 text-white" />
+              <Logo className="w-6 h-6 text-white" />
             </div>
             <div className="hidden sm:block text-left">
               <span className="block text-sm font-bold text-slate-900 leading-tight group-hover:text-academic-700 transition-colors">

@@ -3,9 +3,10 @@ import { motion } from "framer-motion";
 import {
   Shield, Mail, Lock, LogOut, LayoutDashboard, FileText, Star,
   HelpCircle, FileStack, Inbox, Settings as SettingsIcon, Trash2, Pencil,
-  Plus, X, CheckCircle2, GraduationCap, CreditCard, XCircle,
+  Plus, X, CheckCircle2, CreditCard, XCircle,
 } from "lucide-react";
 import { navigate } from "../router.jsx";
+import Logo from "../components/Logo.jsx";
 import {
   useApp, fetchOrders, setOrderStatus, fetchMessages, deleteMessage, ORDER_STATUSES,
   fetchPayments, verifyPayment, rejectPayment,
@@ -182,7 +183,7 @@ export default function Admin() {
       {/* sidebar */}
       <aside className="w-16 lg:w-60 bg-slate-900 text-slate-300 flex flex-col shrink-0 sticky top-0 h-screen">
         <div className="h-16 flex items-center gap-3 px-4 border-b border-slate-800">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-academic-500 to-academic-700 flex items-center justify-center shrink-0"><GraduationCap className="w-5 h-5 text-white" /></div>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-academic-500 to-academic-700 flex items-center justify-center shrink-0"><Logo className="w-5 h-5 text-white" /></div>
           <div className="hidden lg:block"><p className="text-white font-bold text-sm leading-tight">{BRAND.short}</p><p className="text-[10px] text-academic-300">Admin</p></div>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">

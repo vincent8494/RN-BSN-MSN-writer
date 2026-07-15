@@ -1,4 +1,5 @@
-import { GraduationCap, Mail, MessageCircle, Phone, ArrowUp } from "lucide-react";
+import { Mail, MessageCircle, Phone, ArrowUp } from "lucide-react";
+import Logo from "./Logo.jsx";
 import { Link } from "../router.jsx";
 import { BRAND, CONTACT, FOOTER_LINKS, UNIVERSITIES } from "../data.js";
 
@@ -11,7 +12,7 @@ export default function Footer() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-academic-500 to-academic-700 flex items-center justify-center">
-                <GraduationCap className="w-5 h-5 text-white" />
+                <Logo className="w-6 h-6 text-white" />
               </div>
               <div>
                 <span className="block text-sm font-bold text-white">{BRAND.short}</span>
