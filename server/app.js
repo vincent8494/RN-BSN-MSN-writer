@@ -199,7 +199,16 @@ const orderRow = (o) => ({
   createdAt: o.created_at,
   guestEmail: o.guest_email,
   accessToken: o.access_token || "",
+  // Present on list queries (subselected); absent on single-order fetches.
+  requirementCount: o.req_count != null ? Number(o.req_count) : undefined,
+  deliverableCount: o.del_count != null ? Number(o.del_count) : undefined,
 });
+
+// Attachment count subselects for the order-list queries so the admin/customer
+// tables can show file indicators without a request per order.
+const ORDER_FILE_COUNTS = `
+  (SELECT COUNT(*) FROM attachments a WHERE a.order_id = orders.id AND a.kind = 'requirement') AS req_count,
+  (SELECT COUNT(*) FROM attachments a WHERE a.order_id = orders.id AND a.kind = 'deliverable') AS del_count`;
 
 app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => {
   const b = req.body || {};
@@ -253,8 +262,8 @@ app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => 
 app.get("/api/orders", requireAuth, async (req, res) => {
   const rows =
     req.user.role === "admin"
-      ? await all("SELECT * FROM orders ORDER BY created_at DESC")
-      : await all("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC", [req.user.id]);
+      ? await all(`SELECT *, ${ORDER_FILE_COUNTS} FROM orders ORDER BY created_at DESC`)
+      : await all(`SELECT *, ${ORDER_FILE_COUNTS} FROM orders WHERE user_id = ? ORDER BY created_at DESC`, [req.user.id]);
   res.json({ orders: rows.map(orderRow) });
 });
 

@@ -247,7 +247,15 @@ export default function Admin() {
                     {orders.map((o) => (
                       <tr key={o.id} className="border-t border-slate-100">
                         <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">{o.id}</td>
-                        <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate">{o.title}</td>
+                        <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate">
+                          {o.title}
+                          {o.requirementCount > 0 && (
+                            <span title={`${o.requirementCount} customer file(s)`} className="ml-2 inline-flex items-center gap-0.5 text-[11px] font-semibold text-academic-600 align-middle"><Paperclip className="w-3 h-3" />{o.requirementCount}</span>
+                          )}
+                          {o.deliverableCount > 0 && (
+                            <span title={`${o.deliverableCount} delivered file(s)`} className="ml-2 inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-600 align-middle"><CheckCircle2 className="w-3 h-3" />done</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-slate-900">${Number(o.total).toFixed(2)}</td>
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{o.deadline}</td>
                         <td className="px-4 py-3">
