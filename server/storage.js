@@ -1,53 +1,23 @@
-// File storage abstraction. Production (Netlify Functions) uses Netlify Blobs;
-// local dev writes to server/uploads/. Metadata lives in the DB; this only
-// holds the bytes, keyed by attachment id.
-import path from "node:path";
-import fs from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import { ENV } from "./env.js";
-
-const STORE_NAME = "order-files";
-
-let localDir;
-try {
-  localDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "uploads");
-} catch {
-  localDir = path.join(process.cwd(), "server", "uploads");
-}
-
-const useBlobs = () => ENV.IS_SERVERLESS;
-const localPath = (key) => path.join(localDir, key.replace(/[^a-zA-Z0-9_-]/g, "_"));
-
-async function blobStore() {
-  const { getStore } = await import("@netlify/blobs");
-  return getStore({ name: STORE_NAME, consistency: "strong" });
-}
+// File storage — bytes live in the database (attachment_data), keyed by the
+// attachment id. Keeping files in Turso means one storage backend, automatic
+// cascade with the order, and no separate blob-service credentials to manage.
+// Per-file size is capped upstream to stay within the serverless request limit.
+import { get, run } from "./db.js";
 
 export async function putFile(key, buffer) {
-  if (useBlobs()) {
-    await (await blobStore()).set(key, buffer);
-  } else {
-    await fs.mkdir(localDir, { recursive: true });
-    await fs.writeFile(localPath(key), buffer);
-  }
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  await run(
+    "INSERT INTO attachment_data (id, bytes) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET bytes = excluded.bytes",
+    [key, bytes]
+  );
 }
 
 export async function getFile(key) {
-  if (useBlobs()) {
-    const ab = await (await blobStore()).get(key, { type: "arrayBuffer" });
-    return ab ? Buffer.from(ab) : null;
-  }
-  try {
-    return await fs.readFile(localPath(key));
-  } catch {
-    return null;
-  }
+  const row = await get("SELECT bytes FROM attachment_data WHERE id = ?", [key]);
+  if (!row || row.bytes == null) return null;
+  return Buffer.isBuffer(row.bytes) ? row.bytes : Buffer.from(row.bytes);
 }
 
 export async function deleteFile(key) {
-  if (useBlobs()) {
-    try { await (await blobStore()).delete(key); } catch {}
-  } else {
-    try { await fs.unlink(localPath(key)); } catch {}
-  }
+  await run("DELETE FROM attachment_data WHERE id = ?", [key]);
 }

@@ -117,8 +117,8 @@ const SCHEMA = [
     PRIMARY KEY (kind, id)
   )`,
   // Order files. kind 'requirement' = customer's instructions/source files;
-  // 'deliverable' = the completed work uploaded by the writer/admin. Bytes are
-  // kept in blob storage (server/storage.js) keyed by this id.
+  // 'deliverable' = the completed work uploaded by the writer/admin. Metadata
+  // here; the bytes live in attachment_data, keyed by this id.
   `CREATE TABLE IF NOT EXISTS attachments (
     id          TEXT PRIMARY KEY,
     order_id    TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -128,6 +128,11 @@ const SCHEMA = [
     size        INTEGER NOT NULL DEFAULT 0,
     uploaded_by TEXT DEFAULT '',
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  // File bytes, kept out of the metadata table so listing stays light.
+  `CREATE TABLE IF NOT EXISTS attachment_data (
+    id    TEXT PRIMARY KEY,
+    bytes BLOB NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`,
