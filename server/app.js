@@ -400,6 +400,15 @@ app.patch("/api/orders/:id/status", requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.delete("/api/orders/:id", requireAdmin, async (req, res) => {
+  // Remove dependent payments first — FK cascade isn't guaranteed on every
+  // libsql connection, so delete explicitly to avoid orphaned rows.
+  await run("DELETE FROM payments WHERE order_id = ?", [req.params.id]);
+  const info = await run("DELETE FROM orders WHERE id = ?", [req.params.id]);
+  if (!info.changes) return res.status(404).json({ error: "Order not found." });
+  res.json({ ok: true });
+});
+
 // ---------------------------------------------------------------------------
 // Contact inbox
 // ---------------------------------------------------------------------------

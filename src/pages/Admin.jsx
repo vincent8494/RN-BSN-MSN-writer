@@ -8,7 +8,7 @@ import {
 import { navigate } from "../router.jsx";
 import Logo from "../components/Logo.jsx";
 import {
-  useApp, fetchOrders, setOrderStatus, fetchMessages, deleteMessage, ORDER_STATUSES,
+  useApp, fetchOrders, setOrderStatus, deleteOrder, fetchMessages, deleteMessage, ORDER_STATUSES,
   fetchPayments, verifyPayment, rejectPayment,
 } from "../store.jsx";
 import { BRAND, ACADEMIC_LEVELS, DEADLINES } from "../data.js";
@@ -174,6 +174,13 @@ export default function Admin() {
     setMessages((p) => p.filter((m) => m.id !== id));
     notify("Message deleted.");
   };
+  const removeOrder = async (id) => {
+    if (!window.confirm(`Permanently delete order ${id}? This also removes its payment records and cannot be undone.`)) return;
+    const res = await deleteOrder(id);
+    if (res.error) return notify(res.error);
+    await refreshOrdersAndPayments();
+    notify(`Order ${id} deleted.`);
+  };
 
   // Revenue counts only admin-verified payments — not unpaid orders.
   const revenue = payments.filter((p) => p.status === "verified").reduce((s, p) => s + (Number(p.amount) || 0), 0);
@@ -232,7 +239,7 @@ export default function Admin() {
               {orders.length === 0 ? <p className="p-8 text-sm text-slate-500 text-center">No orders yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                    <tr><th className="px-4 py-3 text-left">Order</th><th className="px-4 py-3 text-left">Title</th><th className="px-4 py-3 text-left">Total</th><th className="px-4 py-3 text-left">Deadline</th><th className="px-4 py-3 text-left">Status</th></tr>
+                    <tr><th className="px-4 py-3 text-left">Order</th><th className="px-4 py-3 text-left">Title</th><th className="px-4 py-3 text-left">Total</th><th className="px-4 py-3 text-left">Deadline</th><th className="px-4 py-3 text-left">Status</th><th className="px-4 py-3 text-right">Action</th></tr>
                   </thead>
                   <tbody>
                     {orders.map((o) => (
@@ -245,6 +252,9 @@ export default function Admin() {
                           <select value={o.status} onChange={(e) => changeStatus(o.id, e.target.value)} className={`text-xs font-semibold px-2 py-1 rounded-lg border-0 cursor-pointer ${STATUS_STYLES[o.status] || "bg-slate-100 text-slate-600"}`}>
                             {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                           </select>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => removeOrder(o.id)} aria-label={`Delete order ${o.id}`} className="text-slate-400 hover:text-red-500 cursor-pointer"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}

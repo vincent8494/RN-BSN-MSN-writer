@@ -45,6 +45,7 @@ export const fetchOrder = (id, token) =>
   api(`/orders/${encodeURIComponent(id)}${token ? `?t=${encodeURIComponent(token)}` : ""}`);
 export const setOrderStatus = (id, status) =>
   api(`/orders/${encodeURIComponent(id)}/status`, { method: "PATCH", body: { status } });
+export const deleteOrder = (id) => api(`/orders/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 // Payments — automated gateways confirm themselves; manual proof is the fallback.
 export const fetchPayConfig = () => api("/pay/config");
