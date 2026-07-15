@@ -96,7 +96,7 @@ export default function Login() {
         </div>
         <div className="relative z-10 flex flex-col justify-center px-16 w-full">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center mb-6"><Logo className="w-8 h-8 text-white" /></div>
+            <Logo className="w-14 h-14 mb-6" />
             <h2 className="text-3xl font-bold text-white mb-4">Welcome back to {BRAND.short}</h2>
             <p className="text-academic-100 leading-relaxed max-w-md">Track your orders, message your writer and download completed work — all in one place. Distinguished grades, delivered on time.</p>
           </motion.div>

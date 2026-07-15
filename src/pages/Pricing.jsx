@@ -1,9 +1,8 @@
 import { motion } from "framer-motion";
 import { CheckCircle2, MessageCircle, ArrowRight } from "lucide-react";
 import { navigate } from "../router.jsx";
-import Pic from "../components/Pic.jsx";
 import CTABanner from "../components/CTABanner.jsx";
-import { ACADEMIC_LEVELS, DEADLINES, UNIVERSITIES, CONTACT, waMessage } from "../data.js";
+import { ACADEMIC_LEVELS, DEADLINES, waMessage } from "../data.js";
 import { useApp } from "../store.jsx";
 
 export default function Pricing() {
@@ -89,26 +88,6 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Per-school note */}
-      <section className="py-14 bg-slate-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h3 className="text-center font-bold text-slate-900 mb-6">Per-School Rates at a Glance</h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {UNIVERSITIES.map((u) => (
-              <div key={u.id} className="card-academic p-5 flex items-center gap-3">
-                <Pic src={u.logo} alt={`${u.name} logo`} widths={[320]} sizes="90px" className="h-8 max-w-[90px] object-contain" />
-                <div className="min-w-0">
-                  <p className="font-semibold text-slate-900 text-sm truncate">{u.short}</p>
-                  <p className="text-xs text-slate-500">{u.priceNote}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-8">
-            <a href={CONTACT.whatsappLink} target="_blank" rel="noreferrer" className="btn-whatsapp inline-flex"><MessageCircle className="w-4 h-4" /> Ask About Your School</a>
-          </div>
-        </div>
-      </section>
       <CTABanner />
     </main>
   );

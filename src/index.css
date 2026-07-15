@@ -132,6 +132,30 @@ body {
   }
 }
 
+/* Brand logo badge — surface adapts to the color theme so the mark stays
+   legible on light and dark backgrounds alike. */
+.brand-logo {
+  background: #ffffff;
+  box-shadow:
+    inset 0 0 0 1px rgba(148, 163, 184, 0.30),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+}
+:root[data-theme="dark"] .brand-logo,
+.brand-logo.is-dark {
+  background: #f1ece3;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-logo {
+    background: #f1ece3;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+      0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+}
+
 /* Infinite logo marquee */
 @keyframes marquee-scroll {
   from { transform: translateX(0); }

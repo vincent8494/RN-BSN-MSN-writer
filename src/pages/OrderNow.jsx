@@ -70,7 +70,6 @@ export default function OrderNow() {
   const [topic, setTopic] = useState("");
   const [instructions, setInstructions] = useState("");
   const [sources, setSources] = useState(3);
-  const [coupon, setCoupon] = useState("");
   const [files, setFiles] = useState([]);
   const [fileError, setFileError] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -85,10 +84,7 @@ export default function OrderNow() {
   const pagesCost = perPage * pages * serviceMult;
   const slidesCost = slides * pricing.pricePerSlide;
   const subtotal = pagesCost + slidesCost;
-  const couponCode = (pricing.coupon?.code || "").trim();
-  const couponMatches = couponCode && coupon.trim().toLowerCase() === couponCode.toLowerCase();
-  const discount = couponMatches ? subtotal * ((pricing.coupon?.percent || 0) / 100) : 0;
-  const total = Math.max(0, subtotal - discount);
+  const total = subtotal;
   const words = pages * WORDS_PER_PAGE;
   const schoolValue = school === "Other / Not listed" ? (otherSchool.trim() || "Other") : school;
 
@@ -141,7 +137,6 @@ export default function OrderNow() {
       total,
       subject: topic,
       sources,
-      coupon,
     });
     if (res.error) {
       setPlacing(false);
@@ -321,15 +316,13 @@ export default function OrderNow() {
                 <div className="flex justify-between"><dt className="text-slate-500">Price / page</dt><dd className="font-medium text-slate-900">${(perPage * serviceMult).toFixed(2)}</dd></div>
               </dl>
 
-              <div className="mt-4">
-                <label htmlFor="ord-coupon" className={label}>Coupon code</label>
-                <input id="ord-coupon" value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder={couponCode ? `Try ${couponCode}` : "Coupon code"} className={field} />
-                {discount > 0 && <p className="text-xs text-emerald-600 mt-1.5 font-medium">{couponCode} applied — {pricing.coupon.percent}% off your first order (verified at checkout).</p>}
+              <div className="mt-4 flex items-start gap-2 text-xs text-slate-500">
+                <ShieldCheck className="w-4 h-4 text-academic-500 shrink-0 mt-0.5" />
+                <span>No hidden fees — the price above is your final quote, confirmed before any work begins.</span>
               </div>
 
               <div className="border-t border-slate-100 mt-5 pt-4 space-y-2">
                 <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span className="text-slate-900">${subtotal.toFixed(2)}</span></div>
-                {discount > 0 && <div className="flex justify-between text-sm"><span className="text-slate-500">Discount</span><span className="text-emerald-600">-${discount.toFixed(2)}</span></div>}
                 <div className="flex justify-between items-end pt-1">
                   <span className="font-bold text-slate-900">Total</span>
                   <span className="text-2xl font-bold text-academic-700">${total.toFixed(2)}</span>

@@ -58,9 +58,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
           <Link to="/" className="flex items-center gap-3 group cursor-pointer" aria-label={`${BRAND.short} — home`}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-academic-500 to-academic-700 flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300">
-              <Logo className="w-6 h-6 text-white" />
-            </div>
+            <Logo className="w-10 h-10 group-hover:scale-105 transition-transform duration-300" />
             <div className="hidden sm:block text-left">
               <span className="block text-sm font-bold text-slate-900 leading-tight group-hover:text-academic-700 transition-colors">
                 {BRAND.short}

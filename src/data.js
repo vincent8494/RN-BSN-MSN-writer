@@ -477,7 +477,7 @@ export const SAMPLES = [
 // ---------------------------------------------------------------------------
 export const STATS = [
   { value: 100, suffix: "%", label: "Human-written · no AI" },
-  { value: 20, suffix: "%", label: "First-order discount (NEW20)" },
+  { value: 98, suffix: "%", label: "On-time delivery" },
   { value: 10, suffix: "+", label: "Universities covered" },
   { value: 24, suffix: "/7", label: "Support availability" },
 ];
@@ -611,7 +611,7 @@ export const DEFAULT_PRICING = {
   perPage: Object.fromEntries(PRICE_TABLE.map(({ level, ...rates }) => [level, rates])),
   serviceMultipliers: Object.fromEntries(SERVICE_TYPES.map((s) => [s.key, s.multiplier])),
   pricePerSlide: PRICE_PER_SLIDE,
-  coupon: { code: "NEW20", percent: 20 },
+  coupon: { code: "", percent: 0 },
   classRates: PRICING,
   classNote: PRICING_NOTE,
 };

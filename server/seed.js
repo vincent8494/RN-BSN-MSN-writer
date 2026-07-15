@@ -79,7 +79,8 @@ export const DEFAULT_PRICING = {
   },
   serviceMultipliers: { writing: 1.0, editing: 0.7, proofreading: 0.5 },
   pricePerSlide: 5,
-  coupon: { code: "NEW20", percent: 20 },
+  // Coupons are disabled (no code) — the coupon UI was removed site-wide.
+  coupon: { code: "", percent: 0 },
   classRates: [
     { id: "post-bsn", school: "Post University", program: "RN-to-BSN", rate: "$250", unit: "per class", alt: "or $12 / page", features: ["All BSN courses", "Practicum (PE) hours covered", "Discussions & capstone", "24-hour turnaround"], popular: false },
     { id: "capella-bsnmsn", school: "Capella University", program: "BSN & MSN", rate: "$300", unit: "per class", alt: "FlexPath & GuidedPath", features: ["Full NURS-FPX support", "Assessments & capstones", "Distinguished grades", "Unlimited revisions"], popular: true },

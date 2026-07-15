@@ -45,7 +45,6 @@ export default function Terms() {
             <ul className="list-disc pl-5 space-y-1.5">
               <li>Prices shown by the online calculator are estimates; the final quote is confirmed with our team on WhatsApp or email before work begins.</li>
               <li>Payment terms (including pay-after-completion on eligible orders) are agreed per order. Work begins once the agreed payment step is complete.</li>
-              <li>Coupons (e.g. <strong>NEW20</strong> — 20% off a first order) apply once per client and cannot be combined.</li>
             </ul>
           </Section>
 

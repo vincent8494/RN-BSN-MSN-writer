@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowRight, BadgePercent } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { Link } from "../router.jsx";
 
 // Pre-footer conversion banner used across secondary pages.
@@ -19,8 +19,8 @@ export default function CTABanner() {
             You're one step closer to a distinguished grade
           </h2>
           <p className="text-academic-100 flex items-center justify-center lg:justify-start gap-2 flex-wrap">
-            <BadgePercent className="w-4 h-4 shrink-0" />
-            Get 20% off your first order with code <strong className="text-white">NEW20</strong> — plus regular coupons when you sign up.
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            100% human-written, plagiarism-free work with unlimited free revisions.
           </p>
         </motion.div>
         <motion.div

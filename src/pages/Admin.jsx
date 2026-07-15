@@ -193,7 +193,7 @@ export default function Admin() {
       {/* sidebar */}
       <aside className="w-16 lg:w-60 bg-slate-900 text-slate-300 flex flex-col shrink-0 sticky top-0 h-screen">
         <div className="h-16 flex items-center gap-3 px-4 border-b border-slate-800">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-academic-500 to-academic-700 flex items-center justify-center shrink-0"><Logo className="w-5 h-5 text-white" /></div>
+          <Logo className="w-9 h-9 shrink-0" />
           <div className="hidden lg:block"><p className="text-white font-bold text-sm leading-tight">{BRAND.short}</p><p className="text-[10px] text-academic-300">Admin</p></div>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
@@ -497,7 +497,7 @@ function OrderDetailModal({ order, onClose, notify, onOrderChange }) {
     ["Service", order.service], ["Paper type", order.paperType],
     ["Topic / Subject", order.subject], ["Pages", order.pages],
     ["Slides", order.slides], ["Sources", order.sources],
-    ["Deadline", order.deadline], ["Coupon", order.coupon || "—"],
+    ["Deadline", order.deadline],
     ["Total", `$${Number(order.total).toFixed(2)}`], ["Customer", order.guestEmail || "Registered account"],
   ];
 
@@ -664,7 +664,6 @@ function PricingPanel({ app, notify }) {
   const setMult = (key, v) =>
     setP((prev) => ({ ...prev, serviceMultipliers: { ...prev.serviceMultipliers, [key]: v } }));
   const setTop = (key, v) => setP((prev) => ({ ...prev, [key]: v }));
-  const setCoupon = (key, v) => setP((prev) => ({ ...prev, coupon: { ...prev.coupon, [key]: v } }));
   const setCard = (i, key, v) =>
     setP((prev) => ({ ...prev, classRates: prev.classRates.map((c, idx) => (idx === i ? { ...c, [key]: v } : c)) }));
   const addCard = () =>
@@ -734,22 +733,13 @@ function PricingPanel({ app, notify }) {
         </section>
 
         <section className="card-academic p-5">
-          <h2 className="font-bold text-slate-900 mb-1">Add-ons & Coupon</h2>
-          <p className="text-xs text-slate-500 mb-4">Slide price and the first-order discount code.</p>
+          <h2 className="font-bold text-slate-900 mb-1">Add-ons</h2>
+          <p className="text-xs text-slate-500 mb-4">Extra charges applied on top of the per-page rate.</p>
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-slate-700">Price per slide</span>
               <div className="w-24"><NumCell prefix="$" value={p.pricePerSlide ?? ""} onChange={(v) => setTop("pricePerSlide", v)} /></div>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-700">Coupon code</span>
-              <input value={p.coupon?.code ?? ""} onChange={(e) => setCoupon("code", e.target.value)} placeholder="e.g. NEW20" className="w-32 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-academic-500" />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-700">Discount %</span>
-              <div className="w-24"><NumCell prefix="%" value={p.coupon?.percent ?? ""} onChange={(v) => setCoupon("percent", v)} /></div>
-            </div>
-            <p className="text-[11px] text-slate-400">Set the code blank to disable the discount. Applies once per customer on their first order.</p>
           </div>
         </section>
       </div>

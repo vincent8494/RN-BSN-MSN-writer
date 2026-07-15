@@ -11,9 +11,7 @@ export default function Footer() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-academic-500 to-academic-700 flex items-center justify-center">
-                <Logo className="w-6 h-6 text-white" />
-              </div>
+              <Logo className="w-10 h-10" />
               <div>
                 <span className="block text-sm font-bold text-white">{BRAND.short}</span>
                 <span className="block text-[10px] text-academic-300 tracking-wider">{BRAND.tagline}</span>
