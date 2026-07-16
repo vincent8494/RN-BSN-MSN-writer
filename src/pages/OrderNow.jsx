@@ -5,7 +5,7 @@ import { navigate } from "../router.jsx";
 import { createOrder, uploadRequirement, useApp } from "../store.jsx";
 import {
   UNIVERSITIES, SERVICES_OFFERED, ACADEMIC_LEVELS, DEADLINES,
-  CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE,
+  CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE, SITE_URL,
 } from "../data.js";
 
 const PAPER_TYPES = SERVICES_OFFERED.map((s) => s.name);
@@ -194,6 +194,8 @@ export default function OrderNow() {
         : `Files: none attached — I can share them here if needed`,
       instructions.trim() ? `` : null,
       instructions.trim() ? `Instructions: ${instructions.trim().slice(0, 400)}${instructions.trim().length > 400 ? "…" : ""}` : null,
+      ``,
+      `Full order record (files, status, delivery): ${SITE_URL}/admin?order=${encodeURIComponent(res.order.id)}`,
     ].filter((l) => l !== null);
     window.location.href = waMessage(lines.join("\n"));
   };

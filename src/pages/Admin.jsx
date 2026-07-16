@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Shield, Mail, Lock, LogOut, LayoutDashboard, FileText, Star,
@@ -146,6 +146,21 @@ export default function Admin() {
     fetchPayments().then((res) => setPayments(res.payments || []));
     fetchMessages().then((res) => setMessages(res.messages || []));
   }, [isAdmin]);
+
+  // Deep link from the WhatsApp order message: /admin?order=RBW-xxxx opens
+  // that order's workspace directly (once, after the orders load).
+  const deepLinked = useRef(false);
+  useEffect(() => {
+    if (deepLinked.current || !orders.length) return;
+    const target = new URLSearchParams(window.location.search).get("order");
+    if (!target) return;
+    deepLinked.current = true;
+    const o = orders.find((x) => x.id === target);
+    if (o) {
+      setTab("orders");
+      setDetailOrder(o);
+    }
+  }, [orders]);
 
   const notify = (m) => { setToast(m); setTimeout(() => setToast(""), 2500); };
 
