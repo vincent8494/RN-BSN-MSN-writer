@@ -198,6 +198,8 @@ const orderRow = (o) => ({
   status: o.status,
   createdAt: o.created_at,
   guestEmail: o.guest_email,
+  customerName: o.customer_name || "",
+  customerPhone: o.customer_phone || "",
   accessToken: o.access_token || "",
   // Present on list queries (subselected); absent on single-order fetches.
   requirementCount: o.req_count != null ? Number(o.req_count) : undefined,
@@ -216,7 +218,15 @@ app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => 
   const slides = Math.min(50, Math.max(0, parseInt(b.slides, 10) || 0));
   const sources = Math.min(50, Math.max(0, parseInt(b.sources, 10) || 0));
   const serviceKey = SERVICE_KEYS.includes(b.service) ? b.service : "writing";
-  const guestEmail = req.user ? "" : clean(b.guestEmail, 200).toLowerCase();
+  // Contact details — the order is negotiated on WhatsApp, so we need a name,
+  // phone number and reachable email on every order.
+  const customerName = clean(b.name, 100) || clean(req.user?.name, 100);
+  const customerPhone = clean(b.phone, 40).replace(/[^\d+()\-\s]/g, "");
+  const email = (req.user?.email || clean(b.email || b.guestEmail, 200)).toLowerCase();
+  if (!customerName) return res.status(400).json({ error: "Please enter your name." });
+  if (customerPhone.replace(/\D/g, "").length < 7) return res.status(400).json({ error: "Please enter a valid phone number." });
+  if (!isEmail(email)) return res.status(400).json({ error: "Please enter a valid email address." });
+  const guestEmail = req.user ? "" : email;
   // Authoritative amount — recomputed from the live pricing config; client-sent
   // totals are never trusted.
   const pricing = await getPricing();
@@ -233,14 +243,17 @@ app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => 
   const id = `RBW-${await nextOrderNumber()}`;
   const accessToken = crypto.randomBytes(16).toString("hex");
   await run(
-    `INSERT INTO orders (id, user_id, guest_email, access_token, title, description, paper_type, academic_level,
+    `INSERT INTO orders (id, user_id, guest_email, access_token, customer_name, customer_phone,
+                         title, description, paper_type, academic_level,
                          school, service, subject, pages, slides, sources, deadline, coupon, total)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       req.user?.id ?? null,
       guestEmail,
       accessToken,
+      customerName,
+      customerPhone,
       clean(b.title, 300) || clean(b.paperType, 100) || "Order",
       clean(b.description, 5000),
       clean(b.paperType, 100),

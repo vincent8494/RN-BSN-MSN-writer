@@ -151,7 +151,7 @@ export default function Dashboard() {
                       <td className="px-5 py-4"><span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLES[o.status] || "bg-slate-100 text-slate-600"}`}>{o.status}</span></td>
                       <td className="px-5 py-4 text-right whitespace-nowrap">
                         {o.status === "Awaiting Payment" && (
-                          <button onClick={() => navigate(`/checkout?order=${encodeURIComponent(o.id)}`)} className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-academic-600 hover:bg-academic-700 px-3 py-1.5 rounded-lg mr-3 cursor-pointer">Pay Now</button>
+                          <a href={waMessage(`Hi! Following up on my order ${o.id} (${o.title}, est. $${Number(o.total).toFixed(2)}). I'd like to confirm the quote and next steps.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#25d366] hover:bg-[#1eb954] px-3 py-1.5 rounded-lg mr-3 cursor-pointer">Continue on WhatsApp</a>
                         )}
                         {o.status === "Completed" && (
                           <button onClick={() => downloadWork(o.id)} disabled={downloading === o.id} className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg mr-3 cursor-pointer disabled:opacity-60">

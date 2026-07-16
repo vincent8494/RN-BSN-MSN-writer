@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FileText, Upload, X, ArrowLeft, ArrowRight, MessageCircle, ShieldCheck } from "lucide-react";
+import { FileText, Upload, X, ArrowLeft, MessageCircle, ShieldCheck } from "lucide-react";
 import { navigate } from "../router.jsx";
 import { createOrder, uploadRequirement, useApp } from "../store.jsx";
 import {
@@ -76,8 +76,19 @@ export default function OrderNow() {
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState("");
 
+  // Contact details — the order continues on WhatsApp, so we always need a
+  // name, phone number and email. Prefilled from the account when logged in.
+  const [custName, setCustName] = useState("");
+  const [custEmail, setCustEmail] = useState("");
+  const [custPhone, setCustPhone] = useState("");
+
   // Live pricing from the server (same config the server charges against).
-  const { pricing } = useApp();
+  const { pricing, user } = useApp();
+  useEffect(() => {
+    if (!user) return;
+    setCustName((v) => v || user.name || "");
+    setCustEmail((v) => v || user.email || "");
+  }, [user]);
   const serviceType = SERVICE_TYPES.find((s) => s.key === service) || SERVICE_TYPES[0];
   const perPage = pricing.perPage[level]?.[deadline] ?? 12;
   const serviceMult = pricing.serviceMultipliers[service] ?? 1;
@@ -122,8 +133,12 @@ export default function OrderNow() {
   const removeFile = (idx) => setFiles((f) => f.filter((_, i) => i !== idx));
 
   const placeOrder = async () => {
-    setPlacing(true);
     setPlaceError("");
+    // The order continues on WhatsApp — name, phone and email are required.
+    if (!custName.trim()) return setPlaceError("Please enter your name.");
+    if (custPhone.replace(/\D/g, "").length < 7) return setPlaceError("Please enter a valid phone number (with country code).");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(custEmail.trim())) return setPlaceError("Please enter a valid email address.");
+    setPlacing(true);
     const res = await createOrder({
       title: topic || paperType,
       description: instructions,
@@ -137,27 +152,50 @@ export default function OrderNow() {
       total,
       subject: topic,
       sources,
+      name: custName.trim(),
+      phone: custPhone.trim(),
+      email: custEmail.trim(),
     });
     if (res.error) {
       setPlacing(false);
       setPlaceError(res.error);
       return;
     }
-    // Attach the customer's requirement files to the new order (best effort).
+    // Attach the customer's requirement files to the order (best effort).
     const accessToken = res.order.accessToken;
-    let failed = 0;
+    let uploaded = 0;
     for (const f of files) {
       const up = await uploadRequirement(res.order.id, f, accessToken);
-      if (up.error) failed += 1;
+      if (!up.error) uploaded += 1;
     }
     setPlacing(false);
-    const tokenQ = accessToken ? `&t=${encodeURIComponent(accessToken)}` : "";
-    if (failed) {
-      setPlaceError(`Order placed, but ${failed} file(s) couldn't upload. Continue to checkout and send them on WhatsApp, or go back and retry.`);
-      setTimeout(() => navigate(`/checkout?order=${encodeURIComponent(res.order.id)}${tokenQ}`), 2500);
-      return;
-    }
-    navigate(`/checkout?order=${encodeURIComponent(res.order.id)}${tokenQ}`);
+    // Hand over to WhatsApp with every order detail prefilled — pricing and
+    // payment are negotiated there.
+    const deadlineLabel = DEADLINES.find((d) => d.key === deadline)?.label || "";
+    const lines = [
+      `🆕 NEW ORDER ${res.order.id}`,
+      ``,
+      `Name: ${custName.trim()}`,
+      `Phone: ${custPhone.trim()}`,
+      `Email: ${custEmail.trim()}`,
+      ``,
+      `Service: ${serviceType.label}`,
+      `Assignment: ${paperType}`,
+      `School/Program: ${schoolValue}`,
+      `Level: ${level}`,
+      `Pages: ${pages} (~${words.toLocaleString()} words)`,
+      slides > 0 ? `Slides: ${slides}` : null,
+      `Sources: ${sources}`,
+      `Deadline: ${deadlineLabel} (${res.order.deadline})`,
+      topic ? `Topic/Course: ${topic}` : null,
+      `Estimated total: $${Number(res.order.total).toFixed(2)}`,
+      files.length
+        ? `Files (${uploaded}/${files.length} attached to the order on the site): ${files.map((f) => f.name).join(", ")}`
+        : `Files: none attached — I can share them here if needed`,
+      instructions.trim() ? `` : null,
+      instructions.trim() ? `Instructions: ${instructions.trim().slice(0, 400)}${instructions.trim().length > 400 ? "…" : ""}` : null,
+    ].filter((l) => l !== null);
+    window.location.href = waMessage(lines.join("\n"));
   };
 
   const field = "w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-academic-500/20 focus:border-academic-500 transition-all";
@@ -269,6 +307,25 @@ export default function OrderNow() {
               <textarea id="ord-instructions" rows={5} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Describe how we can help you — paste the rubric, requirements and any details..." className={`${field} resize-none`} />
             </motion.div>
 
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card-academic p-6 lg:p-8">
+              <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2"><MessageCircle className="w-5 h-5 text-academic-600" /> Your Contact Details</h2>
+              <p className="text-sm text-slate-500 mb-5">Your order continues on WhatsApp — we'll use these details to confirm your quote and keep you updated.</p>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="ord-name" className={label}>Full Name *</label>
+                  <input id="ord-name" value={custName} onChange={(e) => setCustName(e.target.value)} placeholder="Your name" autoComplete="name" className={field} />
+                </div>
+                <div>
+                  <label htmlFor="ord-phone" className={label}>Phone (WhatsApp) *</label>
+                  <input id="ord-phone" type="tel" value={custPhone} onChange={(e) => setCustPhone(e.target.value)} placeholder="+1 555 123 4567" autoComplete="tel" className={field} />
+                </div>
+                <div>
+                  <label htmlFor="ord-email" className={label}>Email *</label>
+                  <input id="ord-email" type="email" value={custEmail} onChange={(e) => setCustEmail(e.target.value)} placeholder="you@email.com" autoComplete="email" className={field} />
+                </div>
+              </div>
+            </motion.div>
+
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="card-academic p-6 lg:p-8">
               <span className={label}>Attachments (optional)</span>
               <div
@@ -318,24 +375,22 @@ export default function OrderNow() {
 
               <div className="mt-4 flex items-start gap-2 text-xs text-slate-500">
                 <ShieldCheck className="w-4 h-4 text-academic-500 shrink-0 mt-0.5" />
-                <span>No hidden fees — the price above is your final quote, confirmed before any work begins.</span>
+                <span>The estimate above is a starting point — your final quote is agreed on WhatsApp before any work begins. No hidden fees.</span>
               </div>
 
               <div className="border-t border-slate-100 mt-5 pt-4 space-y-2">
                 <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span className="text-slate-900">${subtotal.toFixed(2)}</span></div>
                 <div className="flex justify-between items-end pt-1">
-                  <span className="font-bold text-slate-900">Total</span>
+                  <span className="font-bold text-slate-900">Estimated Total</span>
                   <span className="text-2xl font-bold text-academic-700">${total.toFixed(2)}</span>
                 </div>
               </div>
 
               {placeError && <p role="alert" className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">{placeError}</p>}
-              <button onClick={placeOrder} disabled={placing} className="btn-primary w-full mt-5 disabled:opacity-60">
-                {placing ? (files.length ? "Placing order & uploading files..." : "Placing order...") : <>Proceed to Checkout <ArrowRight className="w-4 h-4" /></>}
+              <button onClick={placeOrder} disabled={placing} className="btn-whatsapp w-full mt-5 disabled:opacity-60">
+                {placing ? (files.length ? "Saving order & uploading files..." : "Saving your order...") : <><MessageCircle className="w-4 h-4" /> Continue on WhatsApp</>}
               </button>
-              <a href={waMessage(`Hi! I'd like to order: ${serviceType.label} · ${paperType} · ${schoolValue} · ${level} · ${pages} pages${slides ? ` · ${slides} slides` : ""} · ${DEADLINES.find((d) => d.key === deadline)?.label}. Topic: ${topic || "N/A"}`)} target="_blank" rel="noreferrer" className="btn-whatsapp w-full mt-3 text-sm">
-                <MessageCircle className="w-4 h-4" /> Or order via WhatsApp
-              </a>
+              <p className="text-[11px] text-slate-400 mt-2 text-center">Your order details (and attached files) are saved and sent with you to WhatsApp — no payment on the site.</p>
               <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 mt-4">
                 <ShieldCheck className="w-3.5 h-3.5" /> 100% confidential · No plagiarism · No AI
               </p>

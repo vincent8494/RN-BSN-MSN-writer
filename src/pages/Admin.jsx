@@ -506,7 +506,10 @@ function OrderDetailModal({ order, onClose, notify, onOrderChange }) {
     ["Topic / Subject", order.subject], ["Pages", order.pages],
     ["Slides", order.slides], ["Sources", order.sources],
     ["Deadline", order.deadline],
-    ["Total", `$${Number(order.total).toFixed(2)}`], ["Customer", order.guestEmail || "Registered account"],
+    ["Total", `$${Number(order.total).toFixed(2)}`],
+    ["Customer", order.customerName || "—"],
+    ["Phone", order.customerPhone || "—"],
+    ["Email", order.guestEmail || "Registered account"],
   ];
 
   return (
