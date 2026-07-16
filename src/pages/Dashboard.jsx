@@ -76,7 +76,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <button onClick={() => navigate("/")} className="flex items-center gap-3 cursor-pointer">
             <Logo className="w-9 h-9" />
-            <span className="font-bold text-slate-900 text-sm hidden sm:block">{BRAND.short}</span>
+            <span className="font-bold text-slate-900 text-[13px] sm:text-sm truncate">{BRAND.short}</span>
           </button>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-500 hidden sm:block">Hi, <span className="font-semibold text-slate-900">{user.name}</span></span>

@@ -57,13 +57,13 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
-          <Link to="/" className="flex items-center gap-3 group cursor-pointer" aria-label={`${BRAND.short} — home`}>
-            <Logo className="w-10 h-10 group-hover:scale-105 transition-transform duration-300" />
-            <div className="hidden sm:block text-left">
-              <span className="block text-sm font-bold text-slate-900 leading-tight group-hover:text-academic-700 transition-colors">
+          <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group cursor-pointer min-w-0 flex-1 lg:flex-initial" aria-label={`${BRAND.short} — home`}>
+            <Logo className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 group-hover:scale-105 transition-transform duration-300" />
+            <div className="text-left min-w-0">
+              <span className="block text-[13px] sm:text-sm font-bold text-slate-900 leading-tight group-hover:text-academic-700 transition-colors truncate">
                 {BRAND.short}
               </span>
-              <span className="block text-[10px] font-medium text-academic-600 tracking-wider leading-tight">
+              <span className="block text-[8.5px] sm:text-[10px] font-medium text-academic-600 tracking-wider leading-tight truncate">
                 BSN-MSN-FNP HOMEWORK HELP
               </span>
             </div>
