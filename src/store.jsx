@@ -116,6 +116,10 @@ export const fetchPayments = () => api("/payments");
 export const verifyPayment = (id) => api(`/payments/${id}/verify`, { method: "POST" });
 export const rejectPayment = (id) => api(`/payments/${id}/reject`, { method: "POST" });
 
+// Users (admin)
+export const fetchUsers = () => api("/users");
+export const resetUserPassword = (id) => api(`/users/${id}/reset-password`, { method: "POST" });
+
 // Contact inbox
 export const sendMessage = (form) => api("/messages", { method: "POST", body: form });
 export const fetchMessages = () => api("/messages");

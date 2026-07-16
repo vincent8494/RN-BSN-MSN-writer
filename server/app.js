@@ -572,6 +572,54 @@ app.delete("/api/orders/:id/files/:fileId", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Users (admin) — list accounts and reset a forgotten password. The customer
+// asks for a reset on WhatsApp (login page flow); the admin verifies it's
+// really them, resets here, and sends the one-time temporary password back.
+// ---------------------------------------------------------------------------
+app.get("/api/users", requireAdmin, async (_req, res) => {
+  const rows = await all(`
+    SELECT u.id, u.name, u.email, u.role, u.created_at,
+           (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS order_count
+    FROM users u ORDER BY u.created_at DESC`);
+  res.json({
+    users: rows.map((u) => ({
+      id: u.id, name: u.name, email: u.email, role: u.role,
+      createdAt: u.created_at, orderCount: Number(u.order_count),
+    })),
+  });
+});
+
+// Unambiguous alphabet (no 0/O/1/l/I) so the password survives being read
+// aloud or retyped from a WhatsApp message.
+const TEMP_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+function tempPassword(len = 12) {
+  const bytes = crypto.randomBytes(len);
+  let out = "";
+  for (let i = 0; i < len; i++) out += TEMP_ALPHABET[bytes[i] % TEMP_ALPHABET.length];
+  return out;
+}
+
+app.post("/api/users/:id/reset-password", requireAdmin, rateLimit("pwreset", 20, 15 * 60e3), async (req, res) => {
+  const target = await get("SELECT * FROM users WHERE id = ?", [req.params.id]);
+  if (!target) return res.status(404).json({ error: "User not found." });
+  if (target.id === req.user.id) {
+    return res.status(400).json({ error: "Use the Change Password form for your own account." });
+  }
+  const temp = tempPassword();
+  const { salt, hash } = hashPassword(temp);
+  await run("UPDATE users SET pass_salt = ?, pass_hash = ? WHERE id = ?", [salt, hash, target.id]);
+  // Kill every session the account holds — whoever had access is out.
+  await run("DELETE FROM sessions WHERE user_id = ?", [target.id]);
+  // If the env-seeded admin was reset, stop seedAdmin reverting it on cold start.
+  if (String(target.email).toLowerCase() === ENV.ADMIN_EMAIL) {
+    await run("INSERT INTO kv (key, value) VALUES ('admin_pw_selfmanaged', '1') ON CONFLICT(key) DO UPDATE SET value = '1'");
+  }
+  console.log(`[auth] admin ${req.user.email} reset password for user ${target.id} (${target.email})`);
+  // Returned once, never stored in plaintext.
+  res.json({ tempPassword: temp });
+});
+
+// ---------------------------------------------------------------------------
 // Contact inbox
 // ---------------------------------------------------------------------------
 app.post("/api/messages", rateLimit("messages", 10, 15 * 60e3), async (req, res) => {

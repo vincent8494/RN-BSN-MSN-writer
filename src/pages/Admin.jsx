@@ -4,6 +4,7 @@ import {
   Shield, Mail, Lock, LogOut, LayoutDashboard, FileText, Star,
   HelpCircle, FileStack, Inbox, Settings as SettingsIcon, Trash2, Pencil,
   Plus, X, CheckCircle2, CreditCard, XCircle, DollarSign, Eye, Download, Upload, Paperclip,
+  Users as UsersIcon, KeyRound, Copy,
 } from "lucide-react";
 import { navigate } from "../router.jsx";
 import Logo from "../components/Logo.jsx";
@@ -12,6 +13,7 @@ import {
   useApp, fetchOrders, setOrderStatus, deleteOrder, fetchMessages, deleteMessage, ORDER_STATUSES,
   fetchPayments, verifyPayment, rejectPayment,
   listOrderFiles, uploadDeliverable, uploadRequirement, downloadOrderFile, removeOrderFile,
+  fetchUsers, resetUserPassword,
 } from "../store.jsx";
 import { BRAND, ACADEMIC_LEVELS, DEADLINES } from "../data.js";
 
@@ -40,6 +42,7 @@ const TABS = [
   { id: "faq", label: "FAQ", icon: HelpCircle },
   { id: "samples", label: "Samples", icon: FileStack },
   { id: "messages", label: "Messages", icon: Inbox },
+  { id: "users", label: "Users", icon: UsersIcon },
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -400,6 +403,7 @@ export default function Admin() {
         )}
 
         {tab === "pricing" && <PricingPanel app={app} notify={notify} />}
+        {tab === "users" && <UsersPanel me={user} notify={notify} />}
         {tab === "settings" && <SettingsPanel app={app} notify={notify} />}
       </main>
 
@@ -810,6 +814,88 @@ function PricingPanel({ app, notify }) {
         <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">{saving ? "Saving..." : "Save Pricing"}</button>
       </div>
     </form>
+  );
+}
+
+// Users list + forgot-password recovery: verify the customer on WhatsApp,
+// reset here, send them the one-time temporary password.
+function UsersPanel({ me, notify }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [result, setResult] = useState(null); // { email, tempPassword }
+  const [busyId, setBusyId] = useState(null);
+
+  useEffect(() => {
+    fetchUsers().then((res) => { setUsers(res.users || []); setLoading(false); });
+  }, []);
+
+  const doReset = async (u) => {
+    if (!window.confirm(`Reset the password for ${u.email}?\n\nTheir current password stops working and they are signed out everywhere. Only do this after verifying it's really them (e.g. on WhatsApp).`)) return;
+    setBusyId(u.id);
+    const res = await resetUserPassword(u.id);
+    setBusyId(null);
+    if (res.error) return notify(res.error);
+    setResult({ email: u.email, tempPassword: res.tempPassword });
+  };
+
+  const copyTemp = async () => {
+    try {
+      await navigator.clipboard.writeText(result.tempPassword);
+      notify("Temporary password copied.");
+    } catch {
+      notify("Couldn't copy — select and copy it manually.");
+    }
+  };
+
+  return (
+    <>
+      <h1 className="text-2xl font-bold text-slate-900 mb-2">Users</h1>
+      <p className="text-sm text-slate-500 mb-6">Customer asked for a password reset? Verify it's really them on WhatsApp first, then reset here and send them the temporary password.</p>
+
+      {result && (
+        <div className="mb-6 card-academic p-5 border-amber-300 bg-amber-50">
+          <p className="text-sm font-semibold text-slate-900 mb-1 flex items-center gap-2"><KeyRound className="w-4 h-4 text-amber-600" /> Temporary password for {result.email}</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <code className="text-lg font-mono font-bold tracking-wider bg-white border border-amber-200 rounded-lg px-3 py-1.5 select-all">{result.tempPassword}</code>
+            <button onClick={copyTemp} className="inline-flex items-center gap-1.5 text-xs font-semibold text-academic-700 hover:text-academic-800 cursor-pointer"><Copy className="w-3.5 h-3.5" /> Copy</button>
+            <button onClick={() => setResult(null)} className="text-xs font-medium text-slate-500 hover:text-slate-700 cursor-pointer">Dismiss</button>
+          </div>
+          <p className="text-xs text-amber-700 mt-2">Shown only once — send it to the customer now (WhatsApp), and tell them to change it after signing in (Dashboard → Account security).</p>
+        </div>
+      )}
+
+      <div className="card-academic overflow-x-auto">
+        {loading ? <p className="p-8 text-sm text-slate-500 text-center">Loading…</p> : (
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+              <tr><th className="px-4 py-3 text-left">Name</th><th className="px-4 py-3 text-left">Email</th><th className="px-4 py-3 text-left">Role</th><th className="px-4 py-3 text-left">Orders</th><th className="px-4 py-3 text-left">Joined</th><th className="px-4 py-3 text-right">Action</th></tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id} className="border-t border-slate-100">
+                  <td className="px-4 py-3 font-semibold text-slate-900">{u.name}</td>
+                  <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${u.role === "admin" ? "bg-academic-100 text-academic-700" : "bg-slate-100 text-slate-600"}`}>{u.role}</span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{u.orderCount}</td>
+                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{u.createdAt?.slice(0, 10)}</td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    {u.id === me?.id ? (
+                      <span className="text-xs text-slate-400">you — use Settings</span>
+                    ) : (
+                      <button onClick={() => doReset(u)} disabled={busyId === u.id} className="inline-flex items-center gap-1.5 text-xs font-semibold text-academic-600 hover:text-academic-700 cursor-pointer disabled:opacity-50">
+                        <KeyRound className="w-3.5 h-3.5" /> {busyId === u.id ? "Resetting…" : "Reset password"}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
   );
 }
 
