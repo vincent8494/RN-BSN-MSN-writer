@@ -81,7 +81,8 @@ function UniversityCard({ u, i }) {
         </div>
 
         <div className="hidden md:block relative bg-slate-50 border-l border-slate-100">
-          <Pic src={u.flyer} alt={`${u.name} assignment help flyer`} sizes="(min-width: 768px) 33vw, 100vw" className="absolute inset-0 w-full h-full object-cover" />
+          {/* object-contain: these are text posters — never crop their content */}
+          <Pic src={u.flyer} alt={`${u.name} assignment help flyer`} minWidth={768} sizes="33vw" className="absolute inset-0 w-full h-full object-contain p-3" />
         </div>
       </div>
     </motion.div>

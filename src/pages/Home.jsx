@@ -106,7 +106,7 @@ function Hero({ settings }) {
             className="hidden lg:block"
           >
             <div className="relative rounded-2xl overflow-hidden border border-white/15 shadow-2xl bg-white/5">
-              <Pic src="/images/flyer-wgu.jpg" alt="RN-BSN / MSN writing services flyer" width={853} height={1280} eager fetchPriority="high" sizes="(min-width: 1024px) 38rem, 90vw" className="w-full h-auto object-cover" />
+              <Pic src="/images/flyer-wgu.jpg" alt="RN-BSN / MSN writing services flyer" width={853} height={1280} eager fetchPriority="high" minWidth={1024} sizes="38rem" className="w-full h-auto object-cover" />
             </div>
           </motion.div>
         </div>
