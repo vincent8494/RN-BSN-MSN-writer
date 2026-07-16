@@ -597,12 +597,21 @@ function StructuredData({ faq }) {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
     name: BRAND.name,
+    slogan: BRAND.tagline,
     description:
-      "Nursing and healthcare academic writing support for RN-to-BSN, BSN-to-MSN, MSN-to-DNP and Social Work programs at WGU, Capella, Post University, SNHU, GCU and more.",
+      "BSN, MSN, FNP and DNP homework help — Capella FlexPath assessments, WGU D-courses, and nursing, healthcare and social-work programs at Post University, SNHU, GCU and more.",
     url: SITE_URL,
+    logo: `${SITE_URL}/logo-mark.png`,
+    image: `${SITE_URL}/images/banner-rnbsn.jpg`,
     telephone: CONTACT.phoneDisplay,
     email: CONTACT.email,
     priceRange: "$200–$300 per class",
+    areaServed: "Worldwide",
+    knowsAbout: [
+      "RN-to-BSN", "BSN-to-MSN", "MSN-to-DNP", "FNP coursework",
+      "Capella FlexPath", "NURS-FPX assessments", "WGU D-courses",
+      "nursing capstone projects", "evidence-based practice papers",
+    ],
     openingHoursSpecification: {
       "@type": "OpeningHoursSpecification",
       dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -610,6 +619,12 @@ function StructuredData({ faq }) {
       closes: "23:59",
     },
     sameAs: [CONTACT.tiktok, CONTACT.instagram],
+  };
+  const website = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: BRAND.name,
+    url: SITE_URL,
   };
   const faqPage = {
     "@context": "https://schema.org",
@@ -623,6 +638,7 @@ function StructuredData({ faq }) {
   return (
     <>
       <script type="application/ld+json">{jsonLd(business)}</script>
+      <script type="application/ld+json">{jsonLd(website)}</script>
       <script type="application/ld+json">{jsonLd(faqPage)}</script>
     </>
   );

@@ -26,9 +26,9 @@ const Blog = lazy(() => import("./pages/Blog.jsx"));
 const Privacy = lazy(() => import("./pages/Privacy.jsx"));
 const Terms = lazy(() => import("./pages/Terms.jsx"));
 
-const DEFAULT_TITLE = `${BRAND.name} | WGU · Capella · Post University Nursing Help`;
+const DEFAULT_TITLE = `${BRAND.name} | BSN, MSN & FNP Homework Help — WGU, Capella & More`;
 const DEFAULT_DESCRIPTION =
-  "Expert RN-to-BSN, BSN-to-MSN, MSN-to-DNP and Social Work assignment help for WGU, Capella, Post University, SNHU, GCU, Walden, Sophia & more. Distinguished grades, no plagiarism, 100% privacy, 24-hour turnaround.";
+  "BSN, MSN, FNP & DNP homework help from expert nursing writers. Capella FlexPath assessments, WGU D-courses, Post University, SNHU, GCU & Sophia. Human-written, plagiarism-free, 24-hour turnaround, 100% private.";
 
 const ROUTES = {
   "/": { Page: Home, shell: true },
