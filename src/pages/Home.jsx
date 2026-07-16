@@ -103,10 +103,10 @@ function Hero({ settings }) {
 
           <motion.div
             initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.3 }}
-            className="hidden lg:block"
+            className="mt-10 lg:mt-0 max-w-md mx-auto w-full lg:max-w-none"
           >
             <div className="relative rounded-2xl overflow-hidden border border-white/15 shadow-2xl bg-white/5">
-              <Pic src="/images/flyer-wgu.jpg" alt="RN-BSN / MSN writing services flyer" width={853} height={1280} eager fetchPriority="high" minWidth={1024} sizes="38rem" className="w-full h-auto object-cover" />
+              <Pic src="/images/flyer-wgu.jpg" alt="RN-BSN / MSN writing services flyer" width={853} height={1280} eager fetchPriority="high" sizes="(min-width: 1024px) 38rem, (min-width: 448px) 28rem, 92vw" className="w-full h-auto object-cover" />
             </div>
           </motion.div>
         </div>
