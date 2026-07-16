@@ -224,7 +224,7 @@ export default function Admin() {
                   {orders.slice(0, 6).map((o) => (
                     <div key={o.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-slate-50 text-sm">
                       <span className="font-semibold text-slate-900">{o.id}</span>
-                      <span className="text-slate-600 flex-1 truncate">{o.title}</span>
+                      <span className="text-slate-600 flex-1 truncate">{o.customerName ? `${o.customerName} — ` : ""}{o.title}</span>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLES[o.status] || "bg-slate-100 text-slate-600"}`}>{o.status}</span>
                     </div>
                   ))}
@@ -241,12 +241,17 @@ export default function Admin() {
               {orders.length === 0 ? <p className="p-8 text-sm text-slate-500 text-center">No orders yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                    <tr><th className="px-4 py-3 text-left">Order</th><th className="px-4 py-3 text-left">Title</th><th className="px-4 py-3 text-left">Total</th><th className="px-4 py-3 text-left">Deadline</th><th className="px-4 py-3 text-left">Status</th><th className="px-4 py-3 text-right">Action</th></tr>
+                    <tr><th className="px-4 py-3 text-left">Order</th><th className="px-4 py-3 text-left">Customer</th><th className="px-4 py-3 text-left">Title</th><th className="px-4 py-3 text-left">Total</th><th className="px-4 py-3 text-left">Deadline</th><th className="px-4 py-3 text-left">Status</th><th className="px-4 py-3 text-right">Action</th></tr>
                   </thead>
                   <tbody>
                     {orders.map((o) => (
                       <tr key={o.id} className="border-t border-slate-100">
                         <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">{o.id}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="font-medium text-slate-900">{o.customerName || "—"}</p>
+                          {o.customerPhone && <p className="text-xs text-slate-500">{o.customerPhone}</p>}
+                          {o.customerEmail && <p className="text-xs text-slate-500">{o.customerEmail}</p>}
+                        </td>
                         <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate">
                           {o.title}
                           {o.requirementCount > 0 && (
@@ -509,7 +514,7 @@ function OrderDetailModal({ order, onClose, notify, onOrderChange }) {
     ["Total", `$${Number(order.total).toFixed(2)}`],
     ["Customer", order.customerName || "—"],
     ["Phone", order.customerPhone || "—"],
-    ["Email", order.guestEmail || "Registered account"],
+    ["Email", order.customerEmail || order.guestEmail || "Registered account"],
   ];
 
   return (

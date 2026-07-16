@@ -200,6 +200,9 @@ const orderRow = (o) => ({
   guestEmail: o.guest_email,
   customerName: o.customer_name || "",
   customerPhone: o.customer_phone || "",
+  // Guest orders carry their own email; account orders use the account's
+  // (joined as user_email on list queries).
+  customerEmail: o.guest_email || o.user_email || "",
   accessToken: o.access_token || "",
   // Present on list queries (subselected); absent on single-order fetches.
   requirementCount: o.req_count != null ? Number(o.req_count) : undefined,
@@ -275,7 +278,7 @@ app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => 
 app.get("/api/orders", requireAuth, async (req, res) => {
   const rows =
     req.user.role === "admin"
-      ? await all(`SELECT *, ${ORDER_FILE_COUNTS} FROM orders ORDER BY created_at DESC`)
+      ? await all(`SELECT orders.*, u.email AS user_email, ${ORDER_FILE_COUNTS} FROM orders LEFT JOIN users u ON u.id = orders.user_id ORDER BY orders.created_at DESC`)
       : await all(`SELECT *, ${ORDER_FILE_COUNTS} FROM orders WHERE user_id = ? ORDER BY created_at DESC`, [req.user.id]);
   res.json({ orders: rows.map(orderRow) });
 });
