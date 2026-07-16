@@ -694,8 +694,12 @@ app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 
 // JSON error handler — async route failures must never leak an HTML stack.
 app.use((err, _req, res, _next) => {
-  console.error("[server] unhandled error:", err);
   if (res.headersSent) return;
+  // Malformed request bodies are the client's fault, not a server error.
+  if (err?.type === "entity.parse.failed" || err?.type === "entity.too.large") {
+    return res.status(400).json({ error: "Invalid request body." });
+  }
+  console.error("[server] unhandled error:", err);
   res.status(500).json({ error: "Server error. Please try again." });
 });
 
