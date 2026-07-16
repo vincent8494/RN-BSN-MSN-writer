@@ -7,7 +7,7 @@ export default function Logo({ className = "w-10 h-10" }) {
     <span className={`brand-logo inline-flex items-center justify-center rounded-xl overflow-hidden ${className}`}>
       <img
         src="/logo-mark.png"
-        alt="RN-BSN & MSN Writers"
+        alt="Nursing FlexPath Writers"
         className="w-[82%] h-[82%] object-contain"
         decoding="async"
       />

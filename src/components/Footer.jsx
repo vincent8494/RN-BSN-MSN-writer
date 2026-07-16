@@ -1,4 +1,4 @@
-import { Mail, MessageCircle, Phone, ArrowUp } from "lucide-react";
+import { Mail, MessageCircle, Phone, ArrowUp, Instagram } from "lucide-react";
 import Logo from "./Logo.jsx";
 import { Link } from "../router.jsx";
 import { BRAND, CONTACT, FOOTER_LINKS, UNIVERSITIES } from "../data.js";
@@ -70,6 +70,11 @@ export default function Footer() {
               <li>
                 <a href={CONTACT.tiktok} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-academic-300 transition-colors">
                   <span className="w-4 h-4 grid place-items-center text-[13px] font-bold">♪</span> TikTok
+                </a>
+              </li>
+              <li>
+                <a href={CONTACT.instagram} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-academic-300 transition-colors">
+                  <Instagram className="w-4 h-4" /> Instagram
                 </a>
               </li>
             </ul>

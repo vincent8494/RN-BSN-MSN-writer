@@ -4,8 +4,8 @@
 // ---------------------------------------------------------------------------
 
 export const BRAND = {
-  name: "RN-BSN & MSN Writers",
-  short: "RN-BSN Writers",
+  name: "Nursing FlexPath Writers",
+  short: "Nursing FlexPath Writers",
   tagline: "Your Trusted Partner in Academic Excellence",
 };
 
@@ -20,6 +20,7 @@ export const CONTACT = {
   phoneDisplay: "+1 (309) 286-4134",
   email: "rnbsnmsnwriter@gmail.com",
   tiktok: "https://www.tiktok.com/@albert.george557",
+  instagram: "https://www.instagram.com/rn.bsn.msn.dnp.mba.mha.writer?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
   location: "Available 24/7 — Online Support Worldwide",
 };
 

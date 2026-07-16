@@ -106,7 +106,7 @@ export async function paypalCreateOrder(order, apiOrigin) {
         },
       ],
       application_context: {
-        brand_name: "RN-BSN & MSN Writers",
+        brand_name: "Nursing FlexPath Writers",
         user_action: "PAY_NOW",
         return_url: `${apiOrigin}/api/pay/paypal/return?order=${encodeURIComponent(order.id)}${order.access_token ? `&t=${order.access_token}` : ""}`,
         cancel_url: `${ENV.SITE_ORIGIN}/checkout?order=${encodeURIComponent(order.id)}${order.access_token ? `&t=${order.access_token}` : ""}`,

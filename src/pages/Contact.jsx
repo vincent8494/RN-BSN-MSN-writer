@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, Mail, Phone, ArrowRight, Clock } from "lucide-react";
+import { MessageCircle, Mail, Phone, ArrowRight, Clock, Instagram } from "lucide-react";
 import { sendMessage } from "../store.jsx";
 import { CONTACT } from "../data.js";
 
@@ -53,6 +53,10 @@ export default function Contact() {
             <a href={CONTACT.tiktok} target="_blank" rel="noreferrer" className="card-academic p-5 flex items-center gap-4 hover:border-slate-400 transition-all">
               <div className="w-12 h-12 rounded-xl bg-black text-white flex items-center justify-center text-xl font-bold">♪</div>
               <div><p className="font-bold text-slate-900">TikTok</p><p className="text-sm text-slate-500">Follow us on TikTok</p></div>
+            </a>
+            <a href={CONTACT.instagram} target="_blank" rel="noreferrer" className="card-academic p-5 flex items-center gap-4 hover:border-slate-400 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 via-pink-500 to-amber-400 text-white flex items-center justify-center"><Instagram className="w-6 h-6" /></div>
+              <div><p className="font-bold text-slate-900">Instagram</p><p className="text-sm text-slate-500">Follow us on Instagram</p></div>
             </a>
             <div className="card-academic p-5 flex items-center gap-4 bg-academic-50/50">
               <div className="w-12 h-12 rounded-xl bg-academic-100 text-academic-700 flex items-center justify-center"><Clock className="w-6 h-6" /></div>

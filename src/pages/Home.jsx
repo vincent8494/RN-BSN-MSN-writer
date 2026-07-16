@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, Eye, Star, ShieldCheck, Clock, MessageCircle, CheckCircle2,
-  ChevronDown, Mail,
+  ChevronDown, Mail, Instagram,
 } from "lucide-react";
 import { navigate } from "../router.jsx";
 import { useApp, sendMessage } from "../store.jsx";
@@ -531,6 +531,13 @@ function ContactCTA() {
                   <p className="text-sm text-slate-500">Follow us on TikTok</p>
                 </div>
               </a>
+              <a href={CONTACT.instagram} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-slate-400 hover:bg-slate-50 transition-all">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-600 via-pink-500 to-amber-400 text-white flex items-center justify-center"><Instagram className="w-5 h-5" /></div>
+                <div>
+                  <p className="font-semibold text-slate-900">Instagram</p>
+                  <p className="text-sm text-slate-500">Follow us on Instagram</p>
+                </div>
+              </a>
             </div>
           </div>
 
@@ -602,7 +609,7 @@ function StructuredData({ faq }) {
       opens: "00:00",
       closes: "23:59",
     },
-    sameAs: [CONTACT.tiktok],
+    sameAs: [CONTACT.tiktok, CONTACT.instagram],
   };
   const faqPage = {
     "@context": "https://schema.org",

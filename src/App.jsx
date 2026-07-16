@@ -50,7 +50,7 @@ const ROUTES = {
   },
   "/contact": {
     Page: Contact, shell: true, title: "Contact Us",
-    description: "Contact RN-BSN & MSN Writers 24/7 on WhatsApp at +1 (309) 286-4134 or by email for an instant, no-obligation quote on your nursing course or assignment.",
+    description: "Contact Nursing FlexPath Writers 24/7 on WhatsApp at +1 (309) 286-4134 or by email for an instant, no-obligation quote on your nursing course or assignment.",
   },
   "/order-now": {
     Page: OrderNow, shell: true, title: "Place Your Order",
@@ -66,11 +66,11 @@ const ROUTES = {
   },
   "/privacy": {
     Page: Privacy, shell: true, title: "Privacy Policy",
-    description: "How RN-BSN & MSN Writers collects, uses and protects your data. 100% confidentiality — your identity and orders are never shared.",
+    description: "How Nursing FlexPath Writers collects, uses and protects your data. 100% confidentiality — your identity and orders are never shared.",
   },
   "/terms": {
     Page: Terms, shell: true, title: "Terms & Conditions",
-    description: "Terms of service for RN-BSN & MSN Writers: orders, quotes, revisions, refunds, originality and confidentiality.",
+    description: "Terms of service for Nursing FlexPath Writers: orders, quotes, revisions, refunds, originality and confidentiality.",
   },
   "/checkout": { Page: Checkout, title: "Checkout", noindex: true },
   "/login": { Page: Login, shell: true, fab: false, title: "Sign In", noindex: true },

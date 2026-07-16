@@ -3,7 +3,7 @@
 // testimonials list in sync with the client fallback in src/data.js.
 
 export const DEFAULT_SETTINGS = {
-  heroTagline: "RN-BSN & MSN Writers — Your Trusted Partner in Academic Excellence",
+  heroTagline: "Nursing FlexPath Writers — Your Trusted Partner in Academic Excellence",
   heroTitle1: "Nursing & Healthcare",
   heroTitle2: "Assignment Help That Delivers Distinguished Grades",
   heroDescription:

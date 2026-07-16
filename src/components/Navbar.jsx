@@ -64,7 +64,7 @@ export default function Navbar() {
                 {BRAND.short}
               </span>
               <span className="block text-[10px] font-medium text-academic-600 tracking-wider leading-tight">
-                WGU · Capella · Post · SNHU
+                BSN-MSN-FNP HOMEWORK HELP
               </span>
             </div>
           </Link>
