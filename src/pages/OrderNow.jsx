@@ -5,7 +5,7 @@ import { navigate } from "../router.jsx";
 import { createOrder, uploadRequirement, useApp } from "../store.jsx";
 import {
   UNIVERSITIES, SERVICES_OFFERED, ACADEMIC_LEVELS, DEADLINES,
-  CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE, SITE_URL,
+  CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE,
 } from "../data.js";
 
 const PAPER_TYPES = SERVICES_OFFERED.map((s) => s.name);
@@ -172,6 +172,7 @@ export default function OrderNow() {
     // Hand over to WhatsApp with every order detail prefilled — pricing and
     // payment are negotiated there.
     const deadlineLabel = DEADLINES.find((d) => d.key === deadline)?.label || "";
+    const instr = instructions.trim();
     const lines = [
       `🆕 NEW ORDER ${res.order.id}`,
       ``,
@@ -183,19 +184,18 @@ export default function OrderNow() {
       `Assignment: ${paperType}`,
       `School/Program: ${schoolValue}`,
       `Level: ${level}`,
-      `Pages: ${pages} (~${words.toLocaleString()} words)`,
-      slides > 0 ? `Slides: ${slides}` : null,
-      `Sources: ${sources}`,
-      `Deadline: ${deadlineLabel} (${res.order.deadline})`,
       topic ? `Topic/Course: ${topic}` : null,
+      `Pages: ${pages} (~${words.toLocaleString()} words) @ $${(perPage * serviceMult).toFixed(2)}/page`,
+      slides > 0 ? `Slides: ${slides} @ $${pricing.pricePerSlide}/slide` : null,
+      `Sources required: ${sources}`,
+      `Deadline: ${deadlineLabel} — due ${res.order.deadline}`,
       `Estimated total: $${Number(res.order.total).toFixed(2)}`,
-      files.length
-        ? `Files (${uploaded}/${files.length} attached to the order on the site): ${files.map((f) => f.name).join(", ")}`
-        : `Files: none attached — I can share them here if needed`,
-      instructions.trim() ? `` : null,
-      instructions.trim() ? `Instructions: ${instructions.trim().slice(0, 400)}${instructions.trim().length > 400 ? "…" : ""}` : null,
       ``,
-      `Full order record (files, status, delivery): ${SITE_URL}/admin?order=${encodeURIComponent(res.order.id)}`,
+      files.length
+        ? `Files (${uploaded}/${files.length} attached to my order on the site): ${files.map((f) => f.name).join(", ")}`
+        : `Files: none attached yet — I can share them here`,
+      instr ? `` : null,
+      instr ? `Instructions: ${instr.slice(0, 900)}${instr.length > 900 ? "…" : ""}` : null,
     ].filter((l) => l !== null);
     window.location.href = waMessage(lines.join("\n"));
   };
