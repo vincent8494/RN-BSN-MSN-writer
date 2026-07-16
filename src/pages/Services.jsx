@@ -80,9 +80,9 @@ function UniversityCard({ u, i }) {
           </div>
         </div>
 
-        <div className="relative bg-slate-50 border-t md:border-t-0 md:border-l border-slate-100">
+        <div className="order-first md:order-none relative bg-slate-50 border-b md:border-b-0 md:border-l border-slate-100">
           {/* object-contain: these are text posters — never crop their content.
-              In-flow with a fixed height on phones; fills the column on md+. */}
+              First (above the text) on phones; fills the right column on md+. */}
           <Pic src={u.flyer} alt={`${u.name} assignment help flyer`} sizes="(min-width: 768px) 33vw, 100vw" className="w-full h-80 md:h-full md:absolute md:inset-0 object-contain p-3" />
         </div>
       </div>
