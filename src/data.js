@@ -16,7 +16,6 @@ export const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://rnbsn-msn-wri
 export const CONTACT = {
   whatsappLink: "https://wa.me/message/LK3H5OSOAGDTG1",
   whatsappNumberLink: "https://wa.me/13092864134",
-  whatsappAltLink: "https://wa.me/nursingwriter",
   phoneDisplay: "+1 (309) 286-4134",
   email: "rnbsnmsnwriter@gmail.com",
   tiktok: "https://www.tiktok.com/@albert.george557",
@@ -597,13 +596,6 @@ export const DEADLINES = [
   { key: "days1", label: "24 Hrs" },
   { key: "hours8", label: "8 Hrs" },
 ];
-
-export function pricePerPage(level, deadlineKey) {
-  const row = PRICE_TABLE.find((r) => r.level === level);
-  if (!row) return 12;
-  const v = row[deadlineKey];
-  return typeof v === "number" ? v : 12;
-}
 
 // Client fallback for the live pricing config (/api/content -> pricing). Derived
 // from the constants above so it stays in sync; the server is authoritative.

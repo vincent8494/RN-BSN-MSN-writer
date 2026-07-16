@@ -243,35 +243,46 @@ app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => 
     userId: req.user?.id ?? null,
     guestEmail,
   });
-  const id = `RBW-${await nextOrderNumber()}`;
   const accessToken = crypto.randomBytes(16).toString("hex");
-  await run(
-    `INSERT INTO orders (id, user_id, guest_email, access_token, customer_name, customer_phone,
-                         title, description, paper_type, academic_level,
-                         school, service, subject, pages, slides, sources, deadline, coupon, total)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      req.user?.id ?? null,
-      guestEmail,
-      accessToken,
-      customerName,
-      customerPhone,
-      clean(b.title, 300) || clean(b.paperType, 100) || "Order",
-      clean(b.description, 5000),
-      clean(b.paperType, 100),
-      clean(b.academicLevel, 40),
-      clean(b.school, 100),
-      SERVICE_LABELS[serviceKey],
-      clean(b.subject, 300),
-      pages,
-      slides,
-      sources,
-      deadlineFromKey(b.deadline),
-      clean(b.coupon, 40),
-      total,
-    ]
-  );
+  // The atomic counter guarantees unique numbers; the primary key is the last
+  // line of defense. If the counter ever lands on a legacy id (orders placed
+  // before the counter was reset to 1000), take the next number instead.
+  let id;
+  for (let attempt = 0; ; attempt++) {
+    id = `RBW-${await nextOrderNumber()}`;
+    try {
+      await run(
+        `INSERT INTO orders (id, user_id, guest_email, access_token, customer_name, customer_phone,
+                             title, description, paper_type, academic_level,
+                             school, service, subject, pages, slides, sources, deadline, coupon, total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          req.user?.id ?? null,
+          guestEmail,
+          accessToken,
+          customerName,
+          customerPhone,
+          clean(b.title, 300) || clean(b.paperType, 100) || "Order",
+          clean(b.description, 5000),
+          clean(b.paperType, 100),
+          clean(b.academicLevel, 40),
+          clean(b.school, 100),
+          SERVICE_LABELS[serviceKey],
+          clean(b.subject, 300),
+          pages,
+          slides,
+          sources,
+          deadlineFromKey(b.deadline),
+          clean(b.coupon, 40),
+          total,
+        ]
+      );
+      break;
+    } catch (e) {
+      if (attempt >= 4 || !/unique|constraint|primary/i.test(String(e?.message || e))) throw e;
+    }
+  }
   res.json({ order: orderRow(await get("SELECT * FROM orders WHERE id = ?", [id])) });
 });
 

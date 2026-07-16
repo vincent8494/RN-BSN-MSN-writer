@@ -338,10 +338,10 @@ export async function countAttachments(orderId, kind) {
 export const dbReady = init();
 
 // Monotonic order counter — a single atomic upsert so concurrent serverless
-// invocations can never hand out the same number.
+// invocations can never hand out the same number. Numbering starts at 1000.
 export async function nextOrderNumber() {
   const row = await get(
-    `INSERT INTO kv (key, value) VALUES ('order_counter', '10236')
+    `INSERT INTO kv (key, value) VALUES ('order_counter', '1001')
      ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)
      RETURNING CAST(value AS INTEGER) - 1 AS n`
   );
