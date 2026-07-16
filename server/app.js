@@ -130,6 +130,36 @@ app.get("/api/auth/me", (req, res) => {
   res.json({ user: req.user ? publicUser(req.user) : null });
 });
 
+// Self-service password change. Hardened:
+//  - requires the CURRENT password (a stolen session alone can't take over)
+//  - tight rate limit (brute-forcing the current password here is throttled)
+//  - revokes EVERY session for the user on success (kills hijacked sessions),
+//    then issues a fresh token so the current browser stays signed in
+//  - scrypt + timing-safe compare via the existing helpers
+app.post("/api/auth/change-password", requireAuth, rateLimit("pwchange", 5, 15 * 60e3), async (req, res) => {
+  const current = String(req.body.currentPassword ?? "").slice(0, MAX_PASSWORD_LEN);
+  const next = String(req.body.newPassword ?? "");
+  if (!verifyPassword(current, req.user.pass_salt, req.user.pass_hash)) {
+    return res.status(401).json({ error: "Your current password is incorrect." });
+  }
+  if (next.length < 8) return res.status(400).json({ error: "New password must be at least 8 characters." });
+  if (next.length > MAX_PASSWORD_LEN) return res.status(400).json({ error: `New password must be at most ${MAX_PASSWORD_LEN} characters.` });
+  if (next === current) return res.status(400).json({ error: "New password must be different from your current one." });
+  if (next.toLowerCase() === String(req.user.email).toLowerCase()) {
+    return res.status(400).json({ error: "New password must not be your email address." });
+  }
+  const { salt, hash } = hashPassword(next);
+  await run("UPDATE users SET pass_salt = ?, pass_hash = ? WHERE id = ?", [salt, hash, req.user.id]);
+  await run("DELETE FROM sessions WHERE user_id = ?", [req.user.id]);
+  await createSession(res, req.user.id);
+  // The env-seeded admin now self-manages: stop seedAdmin from reverting the
+  // password to ADMIN_PASSWORD on the next cold start.
+  if (String(req.user.email).toLowerCase() === ENV.ADMIN_EMAIL) {
+    await run("INSERT INTO kv (key, value) VALUES ('admin_pw_selfmanaged', '1') ON CONFLICT(key) DO UPDATE SET value = '1'");
+  }
+  res.json({ ok: true });
+});
+
 // ---------------------------------------------------------------------------
 // Orders
 // ---------------------------------------------------------------------------
@@ -682,7 +712,12 @@ async function seedAdmin() {
   const { salt, hash } = hashPassword(ENV.ADMIN_PASSWORD);
   if (!existing) {
     await run("INSERT INTO users (name, email, pass_salt, pass_hash, role) VALUES ('Admin', ?, ?, ?, 'admin')", [ENV.ADMIN_EMAIL, salt, hash]);
-  } else if (!verifyPassword(ENV.ADMIN_PASSWORD, existing.pass_salt, existing.pass_hash)) {
+    return;
+  }
+  // Once the admin has changed their password in the UI, the env var no longer
+  // drives it — otherwise every cold start would silently revert the change.
+  const selfManaged = await get("SELECT value FROM kv WHERE key = 'admin_pw_selfmanaged'");
+  if (!selfManaged && !verifyPassword(ENV.ADMIN_PASSWORD, existing.pass_salt, existing.pass_hash)) {
     await run("UPDATE users SET pass_salt = ?, pass_hash = ?, role = 'admin' WHERE id = ?", [salt, hash, existing.id]);
   }
 }

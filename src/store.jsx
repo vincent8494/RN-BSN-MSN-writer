@@ -207,6 +207,8 @@ export function AppProvider({ children }) {
         await api("/auth/logout", { method: "POST" });
         setUser(null);
       },
+      changePassword: (currentPassword, newPassword) =>
+        api("/auth/change-password", { method: "POST", body: { currentPassword, newPassword } }),
 
       settings,
       updateSettings: async (s) => {

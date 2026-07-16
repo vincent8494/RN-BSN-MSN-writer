@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LogOut, Plus, FileText, Clock, CheckCircle2, RefreshCw,
-  MessageCircle, Wallet, LayoutDashboard, ArrowRight, Download,
+  MessageCircle, Wallet, LayoutDashboard, ArrowRight, Download, Lock, ChevronDown,
 } from "lucide-react";
 import { navigate } from "../router.jsx";
 import Logo from "../components/Logo.jsx";
+import ChangePassword from "../components/ChangePassword.jsx";
 import { useApp, fetchOrders, listOrderFiles, downloadOrderFile } from "../store.jsx";
 import { BRAND, CONTACT, waMessage } from "../data.js";
 
@@ -175,6 +176,17 @@ export default function Dashboard() {
           </div>
           <a href={CONTACT.whatsappLink} target="_blank" rel="noreferrer" className="btn-whatsapp shrink-0"><MessageCircle className="w-4 h-4" /> Chat with us</a>
         </div>
+
+        {/* account security */}
+        <details className="mt-8 card-academic overflow-hidden group">
+          <summary className="p-5 flex items-center justify-between cursor-pointer list-none">
+            <span className="font-bold text-slate-900 flex items-center gap-2"><Lock className="w-4 h-4 text-academic-600" /> Account security — change password</span>
+            <ChevronDown className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" />
+          </summary>
+          <div className="px-5 pb-5 border-t border-slate-100 pt-4 max-w-xl">
+            <ChangePassword compact />
+          </div>
+        </details>
       </main>
     </div>
   );

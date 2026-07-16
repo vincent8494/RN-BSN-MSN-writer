@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { navigate } from "../router.jsx";
 import Logo from "../components/Logo.jsx";
+import ChangePassword from "../components/ChangePassword.jsx";
 import {
   useApp, fetchOrders, setOrderStatus, deleteOrder, fetchMessages, deleteMessage, ORDER_STATUSES,
   fetchPayments, verifyPayment, rejectPayment,
@@ -832,6 +833,9 @@ function SettingsPanel({ app, notify }) {
         <Field label="Recipient Email" value={s.recipientEmail} onChange={(e) => upd("recipientEmail", e.target.value)} />
         <button type="submit" className="btn-primary">Save Settings</button>
       </form>
+      <div className="mt-8">
+        <ChangePassword />
+      </div>
     </>
   );
 }
