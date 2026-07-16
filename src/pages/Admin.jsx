@@ -13,7 +13,7 @@ import {
   useApp, fetchOrders, setOrderStatus, deleteOrder, fetchMessages, deleteMessage, ORDER_STATUSES,
   fetchPayments, verifyPayment, rejectPayment,
   listOrderFiles, uploadDeliverable, uploadRequirement, downloadOrderFile, removeOrderFile,
-  fetchUsers, resetUserPassword,
+  fetchUsers, resetUserPassword, deleteUser,
 } from "../store.jsx";
 import { BRAND, ACADEMIC_LEVELS, DEADLINES } from "../data.js";
 
@@ -838,6 +838,17 @@ function UsersPanel({ me, notify }) {
     setResult({ email: u.email, tempPassword: res.tempPassword });
   };
 
+  const doDelete = async (u) => {
+    const extra = u.role === "admin" ? "\n\n⚠ This is an ADMIN account." : "";
+    if (!window.confirm(`Permanently delete ${u.email}?${extra}\n\nTheir orders are kept for your records (unlinked from the account). This cannot be undone.`)) return;
+    setBusyId(u.id);
+    const res = await deleteUser(u.id);
+    setBusyId(null);
+    if (res.error) return notify(res.error);
+    setUsers((p) => p.filter((x) => x.id !== u.id));
+    notify(`User ${u.email} deleted.`);
+  };
+
   const copyTemp = async () => {
     try {
       await navigator.clipboard.writeText(result.tempPassword);
@@ -884,9 +895,14 @@ function UsersPanel({ me, notify }) {
                     {u.id === me?.id ? (
                       <span className="text-xs text-slate-400">you — use Settings</span>
                     ) : (
-                      <button onClick={() => doReset(u)} disabled={busyId === u.id} className="inline-flex items-center gap-1.5 text-xs font-semibold text-academic-600 hover:text-academic-700 cursor-pointer disabled:opacity-50">
-                        <KeyRound className="w-3.5 h-3.5" /> {busyId === u.id ? "Resetting…" : "Reset password"}
-                      </button>
+                      <>
+                        <button onClick={() => doReset(u)} disabled={busyId === u.id} className="inline-flex items-center gap-1.5 text-xs font-semibold text-academic-600 hover:text-academic-700 cursor-pointer disabled:opacity-50 mr-3">
+                          <KeyRound className="w-3.5 h-3.5" /> {busyId === u.id ? "Working…" : "Reset password"}
+                        </button>
+                        <button onClick={() => doDelete(u)} disabled={busyId === u.id} aria-label={`Delete ${u.email}`} className="text-slate-400 hover:text-red-500 cursor-pointer disabled:opacity-50 align-middle">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>

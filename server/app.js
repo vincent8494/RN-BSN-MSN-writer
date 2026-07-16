@@ -619,6 +619,22 @@ app.post("/api/users/:id/reset-password", requireAdmin, rateLimit("pwreset", 20,
   res.json({ tempPassword: temp });
 });
 
+app.delete("/api/users/:id", requireAdmin, async (req, res) => {
+  const target = await get("SELECT * FROM users WHERE id = ?", [req.params.id]);
+  if (!target) return res.status(404).json({ error: "User not found." });
+  if (target.id === req.user.id) {
+    return res.status(400).json({ error: "You can't delete your own account while signed in with it." });
+  }
+  // Orders are business records — keep them, just unlink the account (the
+  // order's customer_name/phone stay). FK behavior isn't guaranteed on every
+  // libsql connection, so do it explicitly, sessions included.
+  await run("UPDATE orders SET user_id = NULL WHERE user_id = ?", [target.id]);
+  await run("DELETE FROM sessions WHERE user_id = ?", [target.id]);
+  await run("DELETE FROM users WHERE id = ?", [target.id]);
+  console.log(`[auth] admin ${req.user.email} deleted user ${target.id} (${target.email}, role ${target.role})`);
+  res.json({ ok: true });
+});
+
 // ---------------------------------------------------------------------------
 // Contact inbox
 // ---------------------------------------------------------------------------
