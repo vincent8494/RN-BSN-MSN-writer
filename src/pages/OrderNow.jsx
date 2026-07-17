@@ -75,6 +75,12 @@ export default function OrderNow() {
   const [dragging, setDragging] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState("");
+  // Set once the order is saved: { id, url, text }. Renders the confirmation
+  // screen with a tap-to-open WhatsApp link instead of a scripted redirect —
+  // real link taps get cleaner app handoff on phones, and the customer can
+  // retry or copy the message if an app-picker dialog is cancelled.
+  const [placed, setPlaced] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   // Contact details — the order continues on WhatsApp, so we need a name and
   // email. Prefilled from the account when logged in.
@@ -193,7 +199,19 @@ export default function OrderNow() {
       instr ? `` : null,
       instr ? `Instructions: ${instr.slice(0, 900)}${instr.length > 900 ? "…" : ""}` : null,
     ].filter((l) => l !== null);
-    window.location.href = waMessage(lines.join("\n"));
+    const text = lines.join("\n");
+    setPlaced({ id: res.order.id, url: waMessage(text), text });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(placed.text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const field = "w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-academic-500/20 focus:border-academic-500 transition-all";
@@ -215,6 +233,31 @@ export default function OrderNow() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-16">
+        {placed ? (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto card-academic p-8 text-center">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-7 h-7" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-1">Order {placed.id} saved!</h2>
+            <p className="text-sm text-slate-600 mb-6">
+              One last step — send us your order on WhatsApp. Everything is pre-filled: just tap the button and hit send.
+            </p>
+            <a href={placed.url} target="_blank" rel="noreferrer" className="btn-whatsapp w-full text-base">
+              <MessageCircle className="w-5 h-5" /> Continue on WhatsApp
+            </a>
+            <div className="mt-5 pt-5 border-t border-slate-100 text-sm text-slate-500">
+              <p className="mb-2">WhatsApp didn't open, or tapped cancel by mistake?</p>
+              <button onClick={copyMessage} className="inline-flex items-center gap-1.5 text-sm font-semibold text-academic-600 hover:text-academic-700 cursor-pointer">
+                {copied ? "✓ Copied!" : "Copy the order message"}
+              </button>
+              <p className="mt-1 text-xs text-slate-400">then send it to us at {CONTACT.phoneDisplay}</p>
+            </div>
+            <p className="mt-5 text-xs text-slate-400">
+              Keep your order number: <span className="font-semibold text-slate-600">{placed.id}</span>
+              {user ? <> — you can also track it in your <button onClick={() => navigate("/dashboard")} className="text-academic-600 font-semibold cursor-pointer">dashboard</button>.</> : "."}
+            </p>
+          </motion.div>
+        ) : (
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card-academic p-6 lg:p-8">
@@ -391,6 +434,7 @@ export default function OrderNow() {
             </motion.div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
