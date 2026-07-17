@@ -148,6 +148,7 @@ const MIGRATIONS = [
   "ALTER TABLE orders ADD COLUMN access_token TEXT DEFAULT ''",
   "ALTER TABLE orders ADD COLUMN customer_name TEXT DEFAULT ''",
   "ALTER TABLE orders ADD COLUMN customer_phone TEXT DEFAULT ''",
+  "ALTER TABLE orders ADD COLUMN notified INTEGER NOT NULL DEFAULT 0",
 ];
 
 async function init() {

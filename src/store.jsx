@@ -82,6 +82,10 @@ export const uploadDeliverable = (id, file) =>
   uploadFile(`/orders/${encodeURIComponent(id)}/deliverable`, file);
 export const removeOrderFile = (id, fileId, token) =>
   api(`/orders/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}${fileQuery(token)}`, { method: "DELETE" });
+// Emails the order (with attached files) to the admin inbox — fired once after
+// uploads finish; the server makes it idempotent.
+export const notifyOrder = (id, token) =>
+  api(`/orders/${encodeURIComponent(id)}/notify${fileQuery(token)}`, { method: "POST" });
 
 // Fetch a file and trigger a browser download.
 export async function downloadOrderFile(id, fileId, token) {

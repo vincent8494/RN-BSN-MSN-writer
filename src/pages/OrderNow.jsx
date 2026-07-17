@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FileText, Upload, X, ArrowLeft, MessageCircle, ShieldCheck } from "lucide-react";
 import { navigate } from "../router.jsx";
-import { createOrder, uploadRequirement, useApp } from "../store.jsx";
+import { createOrder, uploadRequirement, notifyOrder, useApp } from "../store.jsx";
 import {
   UNIVERSITIES, SERVICES_OFFERED, ACADEMIC_LEVELS, DEADLINES,
   CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE,
@@ -171,6 +171,8 @@ export default function OrderNow() {
       const up = await uploadRequirement(res.order.id, f, accessToken);
       if (!up.error) uploaded += 1;
     }
+    // Email the order (files now attached) to the admin — fire and forget.
+    notifyOrder(res.order.id, accessToken).catch(() => {});
     setPlacing(false);
     // Hand over to WhatsApp with every order detail prefilled — pricing and
     // payment are negotiated there.

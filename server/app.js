@@ -9,6 +9,7 @@ import {
 } from "./db.js";
 import { CONTENT_FIELDS, SERVICE_KEYS, SERVICE_LABELS } from "./seed.js";
 import { putFile, getFile, deleteFile } from "./storage.js";
+import { sendOrderEmail, emailEnabled } from "./email.js";
 import {
   hashPassword, verifyPassword, createSession, destroySession, publicUser,
   sessionMiddleware, requireAuth, requireAdmin, rateLimit,
@@ -550,6 +551,39 @@ app.get("/api/orders/:id/files/:fileId/download", rateLimit("download", 200, 15 
   const buf = await getFile(att.id);
   if (!buf) return res.status(404).json({ error: "File data is missing." });
   res.json({ filename: att.filename, mime: att.mime, dataBase64: buf.toString("base64") });
+});
+
+// Notify the admin inbox about a new order — called by the client once file
+// uploads finish, so attachments make it into the email. Idempotent (fires at
+// most once per order) and access-controlled, so it can't be used to spam.
+app.post("/api/orders/:id/notify", rateLimit("notify", 30, 15 * 60e3), async (req, res) => {
+  const o = await get("SELECT * FROM orders WHERE id = ?", [req.params.id]);
+  if (!o) return res.status(404).json({ error: "Order not found." });
+  if (!canAccessOrder(req, o)) return res.status(403).json({ error: "You don't have access to this order." });
+  if (o.notified) return res.json({ ok: true, already: true });
+  if (!emailEnabled()) return res.json({ ok: false, skipped: true });
+  // Claim the flag first so concurrent calls can't double-send.
+  const claim = await run("UPDATE orders SET notified = 1 WHERE id = ? AND notified = 0", [o.id]);
+  if (!claim.changes) return res.json({ ok: true, already: true });
+  const metas = (await listAttachments(o.id)).filter((f) => f.kind === "requirement");
+  const files = [];
+  for (const m of metas) files.push({ filename: m.filename, bytes: await getFile(m.id) });
+  let userEmail = o.guest_email;
+  if (o.user_id) {
+    const u = await get("SELECT email FROM users WHERE id = ?", [o.user_id]);
+    userEmail = u?.email || userEmail;
+  }
+  const settings = await getSettings();
+  const result = await sendOrderEmail({
+    to: settings.recipientEmail || "rnbsnmsnwriter@gmail.com",
+    order: orderRow({ ...o, user_email: userEmail }),
+    files,
+  });
+  if (!result.ok && !result.skipped) {
+    // Sending failed — release the claim so a retry can succeed later.
+    await run("UPDATE orders SET notified = 0 WHERE id = ?", [o.id]);
+  }
+  res.json({ ok: Boolean(result.ok) });
 });
 
 // Delete a file — admin removes any; a customer may remove their own
