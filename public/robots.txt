@@ -6,4 +6,4 @@ Disallow: /checkout
 Disallow: /login
 Disallow: /signup
 
-Sitemap: https://rnbsn-msn-writers.netlify.app/sitemap.xml
+Sitemap: https://nursingflexpathwriters.com/sitemap.xml

@@ -11,7 +11,7 @@ export const BRAND = {
 
 // Public site origin used for canonical URLs, Open Graph and structured data.
 // Set VITE_SITE_URL in .env / Netlify env when a custom domain is added.
-export const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://rnbsn-msn-writers.netlify.app").replace(/\/$/, "");
+export const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://nursingflexpathwriters.com").replace(/\/$/, "");
 
 export const CONTACT = {
   whatsappLink: "https://wa.me/message/LK3H5OSOAGDTG1",
