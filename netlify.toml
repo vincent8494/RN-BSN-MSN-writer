@@ -12,6 +12,13 @@
   # as-is rather than letting esbuild inline it.
   external_node_modules = ["@libsql/client", "libsql"]
 
+# Old Netlify subdomain → custom domain (SEO: one canonical host).
+[[redirects]]
+  from = "https://rnbsn-msn-writers.netlify.app/*"
+  to = "https://nursingflexpathwriters.com/:splat"
+  status = 301
+  force = true
+
 # API → serverless function (rewrite, keeps /api/* URLs).
 [[redirects]]
   from = "/api/*"
