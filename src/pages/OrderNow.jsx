@@ -76,11 +76,10 @@ export default function OrderNow() {
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState("");
 
-  // Contact details — the order continues on WhatsApp, so we always need a
-  // name, phone number and email. Prefilled from the account when logged in.
+  // Contact details — the order continues on WhatsApp, so we need a name and
+  // email. Prefilled from the account when logged in.
   const [custName, setCustName] = useState("");
   const [custEmail, setCustEmail] = useState("");
-  const [custPhone, setCustPhone] = useState("");
 
   // Live pricing from the server (same config the server charges against).
   const { pricing, user } = useApp();
@@ -134,9 +133,8 @@ export default function OrderNow() {
 
   const placeOrder = async () => {
     setPlaceError("");
-    // The order continues on WhatsApp — name, phone and email are required.
+    // The order continues on WhatsApp — name and email are required.
     if (!custName.trim()) return setPlaceError("Please enter your name.");
-    if (custPhone.replace(/\D/g, "").length < 7) return setPlaceError("Please enter a valid phone number (with country code).");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(custEmail.trim())) return setPlaceError("Please enter a valid email address.");
     setPlacing(true);
     const res = await createOrder({
@@ -153,7 +151,6 @@ export default function OrderNow() {
       subject: topic,
       sources,
       name: custName.trim(),
-      phone: custPhone.trim(),
       email: custEmail.trim(),
     });
     if (res.error) {
@@ -177,7 +174,6 @@ export default function OrderNow() {
       `🆕 NEW ORDER ${res.order.id}`,
       ``,
       `Name: ${custName.trim()}`,
-      `Phone: ${custPhone.trim()}`,
       `Email: ${custEmail.trim()}`,
       ``,
       `Service: ${serviceType.label}`,
@@ -312,14 +308,10 @@ export default function OrderNow() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card-academic p-6 lg:p-8">
               <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2"><MessageCircle className="w-5 h-5 text-academic-600" /> Your Contact Details</h2>
               <p className="text-sm text-slate-500 mb-5">Your order continues on WhatsApp — we'll use these details to confirm your quote and keep you updated.</p>
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="ord-name" className={label}>Full Name *</label>
                   <input id="ord-name" value={custName} onChange={(e) => setCustName(e.target.value)} placeholder="Your name" autoComplete="name" className={field} />
-                </div>
-                <div>
-                  <label htmlFor="ord-phone" className={label}>Phone (WhatsApp) *</label>
-                  <input id="ord-phone" type="tel" value={custPhone} onChange={(e) => setCustPhone(e.target.value)} placeholder="+1 555 123 4567" autoComplete="tel" className={field} />
                 </div>
                 <div>
                   <label htmlFor="ord-email" className={label}>Email *</label>

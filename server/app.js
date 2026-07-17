@@ -251,13 +251,12 @@ app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => 
   const slides = Math.min(50, Math.max(0, parseInt(b.slides, 10) || 0));
   const sources = Math.min(50, Math.max(0, parseInt(b.sources, 10) || 0));
   const serviceKey = SERVICE_KEYS.includes(b.service) ? b.service : "writing";
-  // Contact details — the order is negotiated on WhatsApp, so we need a name,
-  // phone number and reachable email on every order.
+  // Contact details — the order is negotiated on WhatsApp, so we need a name
+  // and reachable email on every order. Phone is optional (kept if provided).
   const customerName = clean(b.name, 100) || clean(req.user?.name, 100);
   const customerPhone = clean(b.phone, 40).replace(/[^\d+()\-\s]/g, "");
   const email = (req.user?.email || clean(b.email || b.guestEmail, 200)).toLowerCase();
   if (!customerName) return res.status(400).json({ error: "Please enter your name." });
-  if (customerPhone.replace(/\D/g, "").length < 7) return res.status(400).json({ error: "Please enter a valid phone number." });
   if (!isEmail(email)) return res.status(400).json({ error: "Please enter a valid email address." });
   const guestEmail = req.user ? "" : email;
   // Authoritative amount — recomputed from the live pricing config; client-sent

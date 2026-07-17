@@ -106,7 +106,7 @@ function Hero({ settings }) {
             className="order-first lg:order-none mb-10 lg:mb-0 max-w-md mx-auto w-full lg:max-w-none"
           >
             <div className="relative rounded-2xl overflow-hidden border border-white/15 shadow-2xl bg-white/5">
-              <Pic src="/images/flyer-wgu.jpg" alt="RN-BSN / MSN writing services flyer" width={853} height={1280} eager fetchPriority="high" sizes="(min-width: 1024px) 38rem, (min-width: 448px) 28rem, 92vw" className="w-full h-auto object-cover" />
+              <Pic src="/images/hero-nurse.jpg" alt="Nurse in scrubs with a stethoscope — professional nursing writing support" width={1000} height={1000} eager fetchPriority="high" sizes="(min-width: 1024px) 38rem, (min-width: 448px) 28rem, 92vw" className="w-full h-auto object-cover" />
             </div>
           </motion.div>
         </div>
