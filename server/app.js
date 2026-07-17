@@ -487,7 +487,11 @@ app.delete("/api/orders/:id", requireAdmin, async (req, res) => {
 // serverless. Per-file cap stays under the serverless request-body limit.
 // ---------------------------------------------------------------------------
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
-const rawUpload = express.raw({ type: () => true, limit: "9mb" });
+// Cap the raw parser just above the per-file limit so an oversized body is
+// rejected cleanly (413 via the error handler) rather than parsed and passed
+// on. Bodies larger than the serverless payload limit are rejected upstream by
+// the platform regardless.
+const rawUpload = express.raw({ type: () => true, limit: "5mb" });
 const ALLOWED_UPLOAD = /\.(pdf|docx?|txt|rtf|pptx?|xlsx?|csv|zip|png|jpe?g|gif|webp)$/i;
 
 async function loadOrderForFiles(req, res) {
@@ -792,8 +796,11 @@ app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 // JSON error handler — async route failures must never leak an HTML stack.
 app.use((err, _req, res, _next) => {
   if (res.headersSent) return;
-  // Malformed request bodies are the client's fault, not a server error.
-  if (err?.type === "entity.parse.failed" || err?.type === "entity.too.large") {
+  // Malformed / oversized request bodies are the client's fault, not a server error.
+  if (err?.type === "entity.too.large") {
+    return res.status(413).json({ error: "File is too large." });
+  }
+  if (err?.type === "entity.parse.failed") {
     return res.status(400).json({ error: "Invalid request body." });
   }
   console.error("[server] unhandled error:", err);

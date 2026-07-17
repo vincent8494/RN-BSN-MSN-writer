@@ -227,6 +227,9 @@ export function normalizePricing(input) {
         features: Array.isArray(c?.features) ? c.features.slice(0, 10).map((f) => String(f).slice(0, 120)) : [],
         popular: Boolean(c?.popular),
       }))
+      // Drop blank cards (e.g. an "Add card" that was saved before filling in),
+      // so empty "$ per class" boxes can never render on the pricing page.
+      .filter((c) => c.school.trim() || c.program.trim() || /\d/.test(c.rate))
     : DEFAULT_PRICING.classRates;
   return {
     perPage,

@@ -8,7 +8,7 @@ import { useApp } from "../store.jsx";
 export default function Pricing() {
   // Live, admin-editable pricing (same config the order form and server use).
   const { pricing } = useApp();
-  const classRates = pricing.classRates || [];
+  const classRates = (pricing.classRates || []).filter((c) => (c.school || c.program || "").trim() || /\d/.test(c.rate || ""));
   return (
     <main>
       <section className="bg-gradient-to-br from-academic-600 via-academic-700 to-academic-900 text-white pt-28 pb-16">

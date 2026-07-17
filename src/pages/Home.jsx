@@ -340,7 +340,7 @@ function PricingPreview() {
           <p className="text-slate-600">Clear per-class and per-page rates. No hidden fees — ever.</p>
         </motion.div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {(pricing.classRates || []).map((p, i) => (
+          {(pricing.classRates || []).filter((c) => (c.school || c.program || "").trim() || /\d/.test(c.rate || "")).map((p, i) => (
             <motion.div
               key={p.id} {...fadeUp} transition={{ delay: i * 0.05 }}
               className={`card-academic p-6 relative ${p.popular ? "ring-2 ring-academic-500 shadow-xl" : ""}`}
