@@ -2,7 +2,26 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Clock, CalendarDays, X, ArrowRight } from "lucide-react";
 import { BLOG_POSTS, BLOG_CATEGORIES } from "../content/blog.js";
+import { BRAND, SITE_URL } from "../data.js";
 import CTABanner from "../components/CTABanner.jsx";
+
+// SEO: tell search engines this is a blog and what each post covers.
+const blogJsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  name: `${BRAND.name} — Nursing Study Blog`,
+  url: `${SITE_URL}/blog`,
+  publisher: { "@type": "Organization", name: BRAND.name, url: SITE_URL },
+  blogPost: BLOG_POSTS.map((p) => ({
+    "@type": "BlogPosting",
+    headline: p.title,
+    datePublished: p.date,
+    articleSection: p.category,
+    description: p.excerpt,
+    url: `${SITE_URL}/blog`,
+    author: { "@type": "Organization", name: BRAND.name },
+  })),
+}).replace(/</g, "\\u003c");
 
 function formatDate(iso) {
   const d = new Date(iso);
@@ -68,6 +87,8 @@ export default function Blog() {
   });
 
   return (
+    <>
+    <script type="application/ld+json">{blogJsonLd}</script>
     <main>
       <section className="bg-gradient-to-br from-academic-600 via-academic-700 to-academic-900 text-white pt-28 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -148,5 +169,6 @@ export default function Blog() {
         {openPost && <ArticleModal post={openPost} onClose={() => setOpenPost(null)} />}
       </AnimatePresence>
     </main>
+    </>
   );
 }
