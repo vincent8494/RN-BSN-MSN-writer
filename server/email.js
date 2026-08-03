@@ -1,10 +1,6 @@
-// Order notification emails via Resend's HTTP API (no SDK needed).
-// Gracefully does nothing when RESEND_API_KEY isn't configured, so the site
-// works with or without email set up.
-//
-// Note: until a custom domain is verified in Resend, the free account can only
-// deliver to the email address the Resend account was created with — sign up
-// with the same inbox you want order alerts in.
+// Transactional emails via Resend's HTTP API (no SDK needed): new-order alerts
+// and contact-form messages. Gracefully does nothing when RESEND_API_KEY isn't
+// configured, so the site works with or without email set up.
 import { ENV } from "./env.js";
 
 const FROM = process.env.RESEND_FROM || "Nursing FlexPath Writers <onboarding@resend.dev>";
@@ -16,10 +12,37 @@ export const emailEnabled = () => Boolean(process.env.RESEND_API_KEY);
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+const kvTable = (rows) =>
+  `<table style="border-collapse:collapse;font-size:14px">${rows
+    .filter(Boolean)
+    .map(([k, v]) => `<tr><td style="padding:6px 14px 6px 0;color:#64748b;white-space:nowrap">${esc(k)}</td><td style="padding:6px 0;font-weight:600;color:#0f172a">${esc(v)}</td></tr>`)
+    .join("")}</table>`;
+
+// Single place that talks to Resend. Returns {ok, id} or {ok:false} / skip.
+async function resendSend(payload) {
+  if (!emailEnabled()) return { ok: false, skipped: true };
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: FROM, ...payload }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error("[email] resend failed:", res.status, data?.message || data);
+      return { ok: false };
+    }
+    return { ok: true, id: data.id };
+  } catch (e) {
+    console.error("[email] resend threw:", e.message);
+    return { ok: false };
+  }
+}
+
 export async function sendOrderEmail({ to, order, files }) {
   if (!emailEnabled()) return { ok: false, skipped: true };
 
-  const rows = [
+  const tableHtml = kvTable([
     ["Order", order.id],
     ["Name", order.customerName],
     ["Email", order.customerEmail || order.guestEmail],
@@ -34,11 +57,7 @@ export async function sendOrderEmail({ to, order, files }) {
     ["Sources", String(order.sources)],
     ["Deadline", order.deadline],
     ["Estimated total", `$${Number(order.total).toFixed(2)}`],
-  ].filter(Boolean);
-
-  const tableHtml = rows
-    .map(([k, v]) => `<tr><td style="padding:6px 14px 6px 0;color:#64748b;white-space:nowrap">${esc(k)}</td><td style="padding:6px 0;font-weight:600;color:#0f172a">${esc(v)}</td></tr>`)
-    .join("");
+  ]);
 
   const filesNote = files.length
     ? `<p style="margin:18px 0 4px;color:#0f172a"><b>Customer files (${files.length}):</b> ${files.map((f) => esc(f.filename)).join(", ")}</p>`
@@ -51,7 +70,7 @@ export async function sendOrderEmail({ to, order, files }) {
   const html = `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:640px;margin:0 auto">
     <h2 style="color:#1e3453">🆕 New order ${esc(order.id)}</h2>
-    <table style="border-collapse:collapse;font-size:14px">${tableHtml}</table>
+    ${tableHtml}
     ${instructions}
     ${filesNote}
     <p style="margin-top:22px"><a href="${esc(ENV.SITE_ORIGIN)}/admin?order=${encodeURIComponent(order.id)}" style="background:#345e94;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Open in admin dashboard</a></p>
@@ -69,24 +88,41 @@ export async function sendOrderEmail({ to, order, files }) {
     attachments.push({ filename: f.filename, content: f.bytes.toString("base64") });
   }
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: FROM,
-      to: [to],
-      subject: `🆕 Order ${order.id} — ${order.customerName} — $${Number(order.total).toFixed(2)}${omitted ? " (some files too large to attach)" : ""}`,
-      html,
-      attachments,
-    }),
+  const custEmail = order.customerEmail || order.guestEmail;
+  return resendSend({
+    to: [to],
+    reply_to: custEmail || undefined,
+    subject: `🆕 Order ${order.id} — ${order.customerName} — $${Number(order.total).toFixed(2)}${omitted ? " (some files too large to attach)" : ""}`,
+    html,
+    attachments,
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    console.error("[email] resend failed:", res.status, data?.message || data);
-    return { ok: false };
-  }
-  return { ok: true, id: data.id };
+}
+
+// Contact-form submission → admin inbox. reply_to is the sender so the admin
+// can reply straight to the customer.
+export async function sendContactEmail({ to, msg }) {
+  if (!emailEnabled()) return { ok: false, skipped: true };
+
+  const tableHtml = kvTable([
+    ["Name", msg.fullName],
+    ["Email", msg.email],
+    msg.phone ? ["Phone", msg.phone] : null,
+    msg.serviceType ? ["Service interest", msg.serviceType] : null,
+  ]);
+
+  const html = `
+  <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:640px;margin:0 auto">
+    <h2 style="color:#1e3453">📩 New contact message</h2>
+    ${tableHtml}
+    <p style="margin:16px 0 4px;color:#0f172a"><b>Message</b></p>
+    <p style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;color:#334155">${esc(msg.message)}</p>
+    <p style="margin-top:18px;color:#64748b;font-size:13px">Reply directly to this email to reach ${esc(msg.fullName)}. Also saved in the admin Messages tab.</p>
+  </div>`;
+
+  return resendSend({
+    to: [to],
+    reply_to: msg.email || undefined,
+    subject: `📩 Contact message from ${msg.fullName}`,
+    html,
+  });
 }

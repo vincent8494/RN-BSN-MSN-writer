@@ -9,7 +9,7 @@ import {
 } from "./db.js";
 import { CONTENT_FIELDS, SERVICE_KEYS, SERVICE_LABELS } from "./seed.js";
 import { putFile, getFile, deleteFile } from "./storage.js";
-import { sendOrderEmail, emailEnabled } from "./email.js";
+import { sendOrderEmail, sendContactEmail, emailEnabled } from "./email.js";
 import {
   hashPassword, verifyPassword, createSession, destroySession, publicUser,
   sessionMiddleware, requireAuth, requireAdmin, rateLimit,
@@ -579,7 +579,7 @@ app.post("/api/orders/:id/notify", rateLimit("notify", 30, 15 * 60e3), async (re
   }
   const settings = await getSettings();
   const result = await sendOrderEmail({
-    to: settings.recipientEmail || "rnbsnmsnwriter@gmail.com",
+    to: settings.recipientEmail || "info@nursingflexpathwriters.com",
     order: orderRow({ ...o, user_email: userEmail }),
     files,
   });
@@ -682,10 +682,21 @@ app.post("/api/messages", rateLimit("messages", 10, 15 * 60e3), async (req, res)
   if (!fullName || !isEmail(email) || !message) {
     return res.status(400).json({ error: "Name, valid email and message are required." });
   }
+  const phone = clean(req.body.phone, 40);
+  const serviceType = clean(req.body.serviceType, 100);
   await run(
     "INSERT INTO messages (full_name, email, phone, service_type, message) VALUES (?, ?, ?, ?, ?)",
-    [fullName, email, clean(req.body.phone, 40), clean(req.body.serviceType, 100), message]
+    [fullName, email, phone, serviceType, message]
   );
+  // Also email the message to the admin inbox (best effort — the message is
+  // already saved and visible in the admin Messages tab regardless).
+  if (emailEnabled()) {
+    const settings = await getSettings();
+    await sendContactEmail({
+      to: settings.recipientEmail || "info@nursingflexpathwriters.com",
+      msg: { fullName, email, phone, serviceType, message },
+    }).catch(() => {});
+  }
   res.json({ ok: true });
 });
 

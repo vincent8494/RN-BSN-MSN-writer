@@ -17,7 +17,7 @@ export const CONTACT = {
   whatsappLink: "https://wa.me/message/LK3H5OSOAGDTG1",
   whatsappNumberLink: "https://wa.me/13092864134",
   phoneDisplay: "+1 (309) 286-4134",
-  email: "rnbsnmsnwriter@gmail.com",
+  email: "info@nursingflexpathwriters.com",
   tiktok: "https://www.tiktok.com/@albert.george557",
   instagram: "https://www.instagram.com/rn.bsn.msn.dnp.mba.mha.writer?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
   location: "Available 24/7 — Online Support Worldwide",
@@ -555,7 +555,7 @@ export const FAQ = [
     id: "faq6",
     question: "How do I get started?",
     answer:
-      "Message us on WhatsApp at +1 (309) 286-4134 or email rnbsnmsnwriter@gmail.com with your school, course and deadline. You can also fill out the order form on this site and we'll follow up with a quote.",
+      "Message us on WhatsApp at +1 (309) 286-4134 or email info@nursingflexpathwriters.com with your school, course and deadline. You can also fill out the order form on this site and we'll follow up with a quote.",
     order: 6,
   },
   {

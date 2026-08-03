@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS = {
   heroDescription:
     "Expert RN-to-BSN, BSN-to-MSN, MSN-to-DNP and Social Work help for WGU, Capella, Post University, SNHU, GCU & more. 100% human-written, no plagiarism, 100% privacy, 24-hour turnaround.",
   contactLocation: "Available 24/7 — Online Support Worldwide",
-  recipientEmail: "rnbsnmsnwriter@gmail.com",
+  recipientEmail: "info@nursingflexpathwriters.com",
 };
 
 // One unified testimonials list drives both the home carousel and the /reviews
@@ -33,7 +33,7 @@ export const FAQ = [
   { id: "faq3", question: "How much does it cost?", answer: "Pricing depends on the school and program. As a guide: Post University BSN is $250 per class (or $12/page), Capella BSN/MSN is $300 per class, Capella DNP is $15/page, and Sophia Learning is $200 per class. Message us for an instant quote on any other school.", order: 3 },
   { id: "faq4", question: "Can you handle a full class or just single assignments?", answer: "Both. We take individual assessments, discussions and capstones, or manage your entire class from start to finish — including practicum (PE) hour courses and the full NURS-FPX / D-course sequences.", order: 4 },
   { id: "faq5", question: "Can you meet urgent deadlines?", answer: "Absolutely. We offer legit 24-hour turnaround for urgent orders while maintaining quality. For very tight deadlines, message us on WhatsApp and we'll confirm feasibility right away.", order: 5 },
-  { id: "faq6", question: "How do I get started?", answer: "Message us on WhatsApp at +1 (309) 286-4134 or email rnbsnmsnwriter@gmail.com with your school, course and deadline. You can also fill out the order form on this site and we'll follow up with a quote.", order: 6 },
+  { id: "faq6", question: "How do I get started?", answer: "Message us on WhatsApp at +1 (309) 286-4134 or email info@nursingflexpathwriters.com with your school, course and deadline. You can also fill out the order form on this site and we'll follow up with a quote.", order: 6 },
   { id: "faq7", question: "Is my information kept private?", answer: "100%. Your identity and account details are confidential and never shared with third parties. All communications are deleted after your order is complete.", order: 7 },
   { id: "faq8", question: "What if I need revisions?", answer: "We offer unlimited free revisions until you are satisfied. Just send your feedback and your writer will make the changes promptly, at no extra cost on eligible orders.", order: 8 },
 ];
