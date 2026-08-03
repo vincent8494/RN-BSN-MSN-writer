@@ -10,6 +10,7 @@ import {
 import { CONTENT_FIELDS, SERVICE_KEYS, SERVICE_LABELS } from "./seed.js";
 import { putFile, getFile, deleteFile } from "./storage.js";
 import { sendOrderEmail, sendContactEmail, emailEnabled } from "./email.js";
+import { turnstileGuard } from "./turnstile.js";
 import {
   hashPassword, verifyPassword, createSession, destroySession, publicUser,
   sessionMiddleware, requireAuth, requireAdmin, rateLimit,
@@ -90,7 +91,7 @@ function canAccessOrder(req, o) {
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
-app.post("/api/auth/signup", rateLimit("signup", 10, 15 * 60e3), async (req, res) => {
+app.post("/api/auth/signup", rateLimit("signup", 10, 15 * 60e3), turnstileGuard, async (req, res) => {
   const name = clean(req.body.name, 100);
   const email = clean(req.body.email, 200).toLowerCase();
   const password = String(req.body.password ?? "");
@@ -111,7 +112,7 @@ app.post("/api/auth/signup", rateLimit("signup", 10, 15 * 60e3), async (req, res
   res.json({ user: publicUser(user) });
 });
 
-app.post("/api/auth/login", rateLimit("login", 20, 15 * 60e3), async (req, res) => {
+app.post("/api/auth/login", rateLimit("login", 20, 15 * 60e3), turnstileGuard, async (req, res) => {
   const email = clean(req.body.email, 200).toLowerCase();
   const password = String(req.body.password ?? "").slice(0, MAX_PASSWORD_LEN);
   const user = await get("SELECT * FROM users WHERE email = ?", [email]);
@@ -246,7 +247,7 @@ const ORDER_FILE_COUNTS = `
   (SELECT COUNT(*) FROM attachments a WHERE a.order_id = orders.id AND a.kind = 'requirement') AS req_count,
   (SELECT COUNT(*) FROM attachments a WHERE a.order_id = orders.id AND a.kind = 'deliverable') AS del_count`;
 
-app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), async (req, res) => {
+app.post("/api/orders", rateLimit("orders", 30, 15 * 60e3), turnstileGuard, async (req, res) => {
   const b = req.body || {};
   const pages = Math.min(200, Math.max(1, parseInt(b.pages, 10) || 1));
   const slides = Math.min(50, Math.max(0, parseInt(b.slides, 10) || 0));
@@ -675,7 +676,7 @@ app.delete("/api/users/:id", requireAdmin, async (req, res) => {
 // ---------------------------------------------------------------------------
 // Contact inbox
 // ---------------------------------------------------------------------------
-app.post("/api/messages", rateLimit("messages", 10, 15 * 60e3), async (req, res) => {
+app.post("/api/messages", rateLimit("messages", 10, 15 * 60e3), turnstileGuard, async (req, res) => {
   const fullName = clean(req.body.fullName, 100);
   const email = clean(req.body.email, 200).toLowerCase();
   const message = clean(req.body.message, 5000);

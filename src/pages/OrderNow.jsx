@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { FileText, Upload, X, ArrowLeft, MessageCircle, ShieldCheck } from "lucide-react";
 import { navigate } from "../router.jsx";
 import { createOrder, uploadRequirement, notifyOrder, useApp } from "../store.jsx";
+import Turnstile from "../components/Turnstile.jsx";
 import {
   UNIVERSITIES, SERVICES_OFFERED, ACADEMIC_LEVELS, DEADLINES,
   CONTACT, waMessage, SERVICE_TYPES, WORDS_PER_PAGE,
@@ -86,6 +87,8 @@ export default function OrderNow() {
   // email. Prefilled from the account when logged in.
   const [custName, setCustName] = useState("");
   const [custEmail, setCustEmail] = useState("");
+  const [tsToken, setTsToken] = useState("");
+  const tsRef = useRef(null);
 
   // Live pricing from the server (same config the server charges against).
   const { pricing, user } = useApp();
@@ -158,10 +161,14 @@ export default function OrderNow() {
       sources,
       name: custName.trim(),
       email: custEmail.trim(),
+      "cf-turnstile-response": tsToken,
     });
     if (res.error) {
       setPlacing(false);
       setPlaceError(res.error);
+      // Single-use token — reset so the customer can retry with a fresh one.
+      tsRef.current?.reset();
+      setTsToken("");
       return;
     }
     // Attach the customer's requirement files to the order (best effort).
@@ -426,7 +433,8 @@ export default function OrderNow() {
               </div>
 
               {placeError && <p role="alert" className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">{placeError}</p>}
-              <button onClick={placeOrder} disabled={placing} className="btn-whatsapp w-full mt-5 disabled:opacity-60">
+              <div className="mt-5 flex justify-center"><Turnstile ref={tsRef} onToken={setTsToken} /></div>
+              <button onClick={placeOrder} disabled={placing} className="btn-whatsapp w-full mt-4 disabled:opacity-60">
                 {placing ? (files.length ? "Saving order & uploading files..." : "Saving your order...") : <><MessageCircle className="w-4 h-4" /> Continue on WhatsApp</>}
               </button>
               <p className="text-[11px] text-slate-400 mt-2 text-center">Your order details (and attached files) are saved and sent with you to WhatsApp — no payment on the site.</p>

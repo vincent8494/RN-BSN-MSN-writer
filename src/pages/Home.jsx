@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, Eye, Star, ShieldCheck, Clock, MessageCircle, CheckCircle2,
@@ -8,6 +8,7 @@ import { navigate } from "../router.jsx";
 import { useApp, sendMessage } from "../store.jsx";
 import { iconFor } from "../icons.js";
 import Pic from "../components/Pic.jsx";
+import Turnstile from "../components/Turnstile.jsx";
 import StatsStrip from "../components/StatsStrip.jsx";
 import TestimonialCarousel from "../components/TestimonialCarousel.jsx";
 import {
@@ -481,14 +482,19 @@ function ContactCTA() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [tsToken, setTsToken] = useState("");
+  const tsRef = useRef(null);
   const upd = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async (e) => {
     e.preventDefault();
     setSending(true);
     setError("");
-    const res = await sendMessage(form);
+    const res = await sendMessage({ ...form, "cf-turnstile-response": tsToken });
     setSending(false);
+    // Single-use token — reset the widget so the next send gets a fresh one.
+    tsRef.current?.reset();
+    setTsToken("");
     if (res.error) {
       setError(res.error);
       return;
@@ -578,6 +584,7 @@ function ContactCTA() {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-academic-500 focus:ring-2 focus:ring-academic-500/20 resize-none"
                 placeholder="Describe your course, assignment and deadline..." />
             </div>
+            <Turnstile ref={tsRef} onToken={setTsToken} />
             <button type="submit" disabled={sending} className="btn-primary w-full disabled:opacity-60">
               {sending ? "Sending..." : <>Send Message <ArrowRight className="w-4 h-4" /></>}
             </button>

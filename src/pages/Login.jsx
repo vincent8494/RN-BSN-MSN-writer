@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, MessageCircle, X, KeyRound } from "lucide-react";
 import Logo from "../components/Logo.jsx";
+import Turnstile from "../components/Turnstile.jsx";
 import { navigate } from "../router.jsx";
 import { useApp } from "../store.jsx";
 import { BRAND, CONTACT, waMessage } from "../data.js";
@@ -76,13 +77,18 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [recover, setRecover] = useState(false);
+  const [tsToken, setTsToken] = useState("");
+  const tsRef = useRef(null);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const res = await login({ email, password });
+    const res = await login({ email, password, "cf-turnstile-response": tsToken });
     setLoading(false);
+    // Single-use token — reset so a failed attempt can retry with a fresh one.
+    tsRef.current?.reset();
+    setTsToken("");
     if (res.error) setError(res.error);
     else navigate(res.user.role === "admin" ? "/admin" : "/dashboard");
   };
@@ -129,6 +135,7 @@ export default function Login() {
             <div className="flex justify-end">
               <button type="button" onClick={() => setRecover(true)} className="text-xs font-medium text-academic-600 hover:text-academic-700 cursor-pointer">Forgot password?</button>
             </div>
+            <Turnstile ref={tsRef} onToken={setTsToken} />
             <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
               {loading ? "Signing in..." : <>Sign In <ArrowRight className="w-4 h-4" /></>}
             </button>

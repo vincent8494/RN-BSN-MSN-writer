@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from "lucide-react";
 import Logo from "../components/Logo.jsx";
+import Turnstile from "../components/Turnstile.jsx";
 import { navigate } from "../router.jsx";
 import { useApp } from "../store.jsx";
 import { BRAND, ACADEMIC_LEVELS } from "../data.js";
@@ -17,6 +18,8 @@ export default function Signup() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tsToken, setTsToken] = useState("");
+  const tsRef = useRef(null);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -27,8 +30,11 @@ export default function Signup() {
     if (password !== confirm) return setError("Passwords do not match.");
     if (!agree) return setError("Please agree to the Terms & Conditions.");
     setLoading(true);
-    const res = await signup({ name, email, password, level });
+    const res = await signup({ name, email, password, level, "cf-turnstile-response": tsToken });
     setLoading(false);
+    // Single-use token — clear it whether we succeeded or need to retry.
+    tsRef.current?.reset();
+    setTsToken("");
     if (res.error) setError(res.error);
     else navigate("/dashboard");
   };
@@ -93,6 +99,7 @@ export default function Signup() {
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 accent-academic-600" />
               <span>I agree to the Terms &amp; Conditions and Privacy Policy.</span>
             </label>
+            <Turnstile ref={tsRef} onToken={setTsToken} />
             <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
               {loading ? "Creating account..." : <>Create Account <ArrowRight className="w-4 h-4" /></>}
             </button>

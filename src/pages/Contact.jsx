@@ -1,21 +1,27 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { MessageCircle, Mail, Phone, ArrowRight, Clock, Instagram } from "lucide-react";
 import { sendMessage } from "../store.jsx";
 import { CONTACT } from "../data.js";
+import Turnstile from "../components/Turnstile.jsx";
 
 export default function Contact() {
   const [form, setForm] = useState({ fullName: "", email: "", phone: "", serviceType: "", message: "" });
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [tsToken, setTsToken] = useState("");
+  const tsRef = useRef(null);
   const upd = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async (e) => {
     e.preventDefault();
     setSending(true);
     setError("");
-    const res = await sendMessage(form);
+    const res = await sendMessage({ ...form, "cf-turnstile-response": tsToken });
     setSending(false);
+    // The token is single-use — clear it and get a fresh one for the next send.
+    tsRef.current?.reset();
+    setTsToken("");
     if (res.error) {
       setError(res.error);
       return;
@@ -92,6 +98,7 @@ export default function Contact() {
               <label htmlFor="ct-message" className="block text-xs font-semibold text-slate-700 mb-1.5">Message</label>
               <textarea id="ct-message" required rows={5} value={form.message} onChange={(e) => upd("message", e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-academic-500 focus:ring-2 focus:ring-academic-500/20 resize-none" placeholder="Describe how we can help you..." />
             </div>
+            <Turnstile ref={tsRef} onToken={setTsToken} />
             <button type="submit" disabled={sending} className="btn-primary w-full disabled:opacity-60">
               {sending ? "Sending..." : <>Send Message <ArrowRight className="w-4 h-4" /></>}
             </button>
