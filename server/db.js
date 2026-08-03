@@ -168,6 +168,27 @@ async function init() {
     } catch {}
   }
   await seedContent();
+  await migrateContactEmail();
+}
+
+// One-time, idempotent data migration: retire the old contact email from
+// admin-managed content already stored in the DB (site settings recipient +
+// FAQ answers). No-ops once nothing matches, so it's safe on every boot.
+const OLD_EMAIL = "rnbsnmsnwriter@gmail.com";
+const NEW_EMAIL = "info@nursingflexpathwriters.com";
+async function migrateContactEmail() {
+  try {
+    const s = await get("SELECT value FROM kv WHERE key = 'site_settings'");
+    if (s && s.value.includes(OLD_EMAIL)) {
+      await run("UPDATE kv SET value = ? WHERE key = 'site_settings'", [s.value.split(OLD_EMAIL).join(NEW_EMAIL)]);
+    }
+    await run(
+      "UPDATE content SET data = replace(data, ?, ?) WHERE kind = 'faq' AND data LIKE '%' || ? || '%'",
+      [OLD_EMAIL, NEW_EMAIL, OLD_EMAIL]
+    );
+  } catch (e) {
+    console.error("[db] contact-email migration:", e.message);
+  }
 }
 
 // Seed default content once. Each kind seeds independently only when empty, so
