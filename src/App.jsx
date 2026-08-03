@@ -3,6 +3,7 @@ import { MotionConfig } from "framer-motion";
 import { usePath, Link } from "./router.jsx";
 import { AppProvider } from "./store.jsx";
 import { BRAND, SITE_URL } from "./data.js";
+import { ROUTE_SEO, DEFAULT_TITLE, DEFAULT_DESCRIPTION } from "./seo.js";
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 import WhatsAppFab from "./components/WhatsAppFab.jsx";
@@ -26,58 +27,31 @@ const Blog = lazy(() => import("./pages/Blog.jsx"));
 const Privacy = lazy(() => import("./pages/Privacy.jsx"));
 const Terms = lazy(() => import("./pages/Terms.jsx"));
 
-const DEFAULT_TITLE = `${BRAND.name} | BSN, MSN & FNP Homework Help — WGU, Capella & More`;
-const DEFAULT_DESCRIPTION =
-  "BSN, MSN, FNP & DNP homework help from expert nursing writers. Capella FlexPath assessments, WGU D-courses, Post University, SNHU, GCU & Sophia. Human-written, plagiarism-free, 24-hour turnaround, 100% private.";
-
-const ROUTES = {
+// Page component + shell/fab wiring. The SEO text (title / description /
+// noindex) is merged in from the shared src/seo.js so the live meta and the
+// build-time prerender (scripts/prerender.mjs) never drift apart.
+const PAGES = {
   "/": { Page: Home, shell: true },
-  "/services": {
-    Page: Services, shell: true, title: "Programs & Courses",
-    description: "Course-by-course nursing, healthcare and social-work help for WGU, Capella, Post University, SNHU, GCU and Sophia — from single assessments to full RN-to-BSN, MSN and DNP programs.",
-  },
-  "/pricing": {
-    Page: Pricing, shell: true, title: "Pricing",
-    description: "Transparent per-class and per-page rates for nursing assignment help: Post University from $250/class, Capella BSN/MSN $300/class, DNP $15/page, Sophia $200/class. No hidden fees.",
-  },
-  "/how-it-works": {
-    Page: HowItWorks, shell: true, title: "How It Works",
-    description: "Get nursing assignment help in four simple steps: message us on WhatsApp, get a quote, we complete your work human-written and rubric-aligned, then review with unlimited free revisions.",
-  },
-  "/samples": {
-    Page: Samples, shell: true, title: "Sample Papers",
-    description: "Browse sample nursing papers — evidence-based practice, leadership, capstone, informatics and social-work projects for WGU, Capella, Post University and GCU programs.",
-  },
-  "/contact": {
-    Page: Contact, shell: true, title: "Contact Us",
-    description: "Contact Nursing FlexPath Writers 24/7 on WhatsApp at +1 (309) 286-4134 or by email for an instant, no-obligation quote on your nursing course or assignment.",
-  },
-  "/order-now": {
-    Page: OrderNow, shell: true, title: "Place Your Order",
-    description: "Place your nursing assignment order online — choose your school, level, pages and deadline for an instant price estimate. 100% confidential, no plagiarism, no AI.",
-  },
-  "/reviews": {
-    Page: Reviews, shell: true, title: "Client Reviews",
-    description: "Read verified client reviews from WGU, Capella, Post University, SNHU and GCU students who got distinguished grades with our nursing assignment help.",
-  },
-  "/blog": {
-    Page: Blog, shell: true, title: "Nursing Study Blog",
-    description: "Free nursing study resources: NCLEX, TEAS and HESI prep guides, APA 7 writing tips, care-plan templates and course-specific strategies for WGU and Capella students.",
-  },
-  "/privacy": {
-    Page: Privacy, shell: true, title: "Privacy Policy",
-    description: "How Nursing FlexPath Writers collects, uses and protects your data. 100% confidentiality — your identity and orders are never shared.",
-  },
-  "/terms": {
-    Page: Terms, shell: true, title: "Terms & Conditions",
-    description: "Terms of service for Nursing FlexPath Writers: orders, quotes, revisions, refunds, originality and confidentiality.",
-  },
-  "/checkout": { Page: Checkout, title: "Checkout", noindex: true },
-  "/login": { Page: Login, shell: true, fab: false, title: "Sign In", noindex: true },
-  "/signup": { Page: Signup, shell: true, fab: false, title: "Create Account", noindex: true },
-  "/dashboard": { Page: Dashboard, title: "My Dashboard", noindex: true },
-  "/admin": { Page: Admin, title: "Admin", noindex: true },
+  "/services": { Page: Services, shell: true },
+  "/pricing": { Page: Pricing, shell: true },
+  "/how-it-works": { Page: HowItWorks, shell: true },
+  "/samples": { Page: Samples, shell: true },
+  "/contact": { Page: Contact, shell: true },
+  "/order-now": { Page: OrderNow, shell: true },
+  "/reviews": { Page: Reviews, shell: true },
+  "/blog": { Page: Blog, shell: true },
+  "/privacy": { Page: Privacy, shell: true },
+  "/terms": { Page: Terms, shell: true },
+  "/checkout": { Page: Checkout },
+  "/login": { Page: Login, shell: true, fab: false },
+  "/signup": { Page: Signup, shell: true, fab: false },
+  "/dashboard": { Page: Dashboard },
+  "/admin": { Page: Admin },
 };
+
+const ROUTES = Object.fromEntries(
+  Object.entries(PAGES).map(([path, cfg]) => [path, { ...cfg, ...ROUTE_SEO[path] }])
+);
 
 // Keeps head tags in sync with the active route (SPA equivalent of per-page meta).
 function upsertMeta(attr, key, content) {
@@ -100,6 +74,8 @@ function applyRouteMeta(path, route) {
   upsertMeta("property", "og:title", title);
   upsertMeta("property", "og:description", description);
   upsertMeta("property", "og:url", url);
+  upsertMeta("name", "twitter:title", title);
+  upsertMeta("name", "twitter:description", description);
   upsertMeta("name", "robots", route.noindex ? "noindex, nofollow" : "index, follow");
 
   let canonical = document.head.querySelector('link[rel="canonical"]');

@@ -11,4 +11,16 @@ export default defineConfig({
       "/api": "http://127.0.0.1:8787",
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the big, rarely-changing libraries into their own hashed
+        // chunks so returning visitors keep them cached across app deploys.
+        manualChunks: {
+          react: ["react", "react-dom"],
+          motion: ["framer-motion"],
+        },
+      },
+    },
+  },
 });
